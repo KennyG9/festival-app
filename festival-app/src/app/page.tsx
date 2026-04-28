@@ -44,7 +44,7 @@ export default function FestivalHub() {
     <main className="min-h-screen bg-black text-white p-6 font-sans">
       <header className="mb-10 pt-6 flex justify-between items-end">
         <div>
-          <h1 className="text-4xl font-black tracking-tighter italic leading-none">SQUAD HUB</h1>
+          <h1 className="text-4xl font-black tracking-tighter italic leading-none">2026 Festivals</h1>
           <p className="text-gray-500 font-bold mt-1 uppercase text-xs tracking-widest">{FESTIVALS.length} Events Scheduled</p>
         </div>
       </header>
