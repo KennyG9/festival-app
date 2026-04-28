@@ -18,17 +18,14 @@ const FESTIVALS: Festival[] = [
     location: "Thornville, Ohio",
     date: "2026-09-18",
     image: "https://www.lostlandsfestival.com/wp-content/uploads/2026/01/Lost_Lands_2026_Logo_WithDatesandLocation_1000px.png",
-    friends: [
-      { name: "Kendrick", pfp: "https://api.dicebear.com/7.x/avataaars/svg?seed=Kendrick" },
-      { name: "Friend1", pfp: "https://api.dicebear.com/7.x/avataaars/svg?seed=Friend1" }
-    ]
+    friends: []
   },
   {
     name: "EDC Orlando",
     location: "Orlando, Florida",
     date: "2026-11-06",
     image: "https://d3vhc53cl8e8km.cloudfront.net/hello-staging/wp-content/uploads/sites/44/2025/11/17172609/edco_2026_mk_ps_fs_seo_1200x630_r01.jpg",
-    friends: [{ name: "Kendrick", pfp: "https://api.dicebear.com/7.x/avataaars/svg?seed=Kendrick" }]
+    friends: []
   },
   {
     name: "Cyclops Cove 4",
