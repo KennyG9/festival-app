@@ -17,14 +17,17 @@ const FESTIVALS: Festival[] = [
     location: "Thornville, OH",
     date: "2026-09-18",
     image: "https://www.lostlandsfestival.com/wp-content/uploads/2024/01/LL24_Social_IG_1080x1080_V1.jpg",
-    friends: [{ name: "User", pfp: "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" }]
+    friends: [
+      { name: "Kendrick", pfp: "https://api.dicebear.com/7.x/avataaars/svg?seed=Kendrick" },
+      { name: "Friend1", pfp: "https://api.dicebear.com/7.x/avataaars/svg?seed=Friend1" }
+    ]
   },
   {
     name: "EDC Orlando",
     location: "Orlando, FL",
     date: "2026-11-06",
     image: "https://orlando.electricdaisycarnival.com/wp-content/uploads/sites/13/2023/11/edco23_social_ig_1080x1080_lineup.jpg",
-    friends: []
+    friends: [{ name: "Kendrick", pfp: "https://api.dicebear.com/7.x/avataaars/svg?seed=Kendrick" }]
   },
   {
     name: "Cyclops Cove 4",
@@ -64,26 +67,43 @@ function FestivalCard({ fest }: { fest: Festival }) {
   }, [fest.date]);
 
   return (
-    <div className="relative h-72 w-full rounded-[2.5rem] overflow-hidden group border border-white/10">
+    <div className="relative h-[450px] w-full rounded-[2.5rem] overflow-hidden group border border-white/10 mb-4 shadow-2xl">
+      {/* Background Image */}
       <img src={fest.image} alt={fest.name} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
 
+      {/* Dark Gradient Overlay */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+
+      {/* Content Container */}
       <div className="absolute inset-0 p-8 flex flex-col justify-between">
         <div>
           <span className="bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest">{fest.location}</span>
-          <h2 className="text-3xl font-black mt-2 leading-none uppercase">{fest.name}</h2>
+          <h2 className="text-4xl font-black mt-2 leading-none uppercase tracking-tighter">{fest.name}</h2>
         </div>
 
-        <div className="flex justify-between items-end">
-          <div className="flex flex-col">
-            <span className="text-5xl font-black tracking-tighter">{daysLeft}</span>
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Days Remaining</span>
+        <div className="space-y-6">
+          <div className="flex justify-between items-end">
+            <div className="flex flex-col">
+              <span className="text-5xl font-black tracking-tighter">{daysLeft}</span>
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Days Remaining</span>
+            </div>
+
+            {/* Friend Avatars */}
+            <div className="flex -space-x-3">
+              {fest.friends.map((friend, i) => (
+                <img key={i} src={friend.pfp} className="w-12 h-12 rounded-full border-2 border-black" alt={friend.name} />
+              ))}
+              <div className="w-12 h-12 rounded-full border-2 border-black bg-white/10 backdrop-blur-sm flex items-center justify-center text-white font-bold text-xs">+</div>
+            </div>
           </div>
 
-          <div className="flex -space-x-3">
-            <div className="w-12 h-12 rounded-full border-2 border-black bg-yellow-400 flex items-center justify-center text-black font-bold text-xs">Me</div>
-            <div className="w-12 h-12 rounded-full border-2 border-black bg-purple-500 flex items-center justify-center text-white font-bold text-xs">+</div>
-          </div>
+          {/* THE NEW BUTTON */}
+          <button
+            onClick={() => alert(`Success! You're added to ${fest.name} squad.`)}
+            className="w-full py-4 bg-white text-black font-black uppercase tracking-widest rounded-2xl hover:bg-gray-200 transition-all active:scale-95 shadow-xl"
+          >
+            I&apos;m Going 🤘
+          </button>
         </div>
       </div>
     </div>
