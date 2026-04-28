@@ -57,14 +57,16 @@ export default function FestivalHub() {
       <div className="p-6">
         <header className="mb-10 pt-6">
           <h1 className="text-4xl font-black italic tracking-tighter leading-none">SQUAD HUB</h1>
-          <p className="text-gray-500 font-bold mt-1 uppercase text-xs tracking-widest tracking-widest">Tap card for details</p>
+          <p className="text-gray-500 font-bold mt-1 uppercase text-xs tracking-widest">Tap card for details • Click + to join</p>
         </header>
 
         <div className="space-y-8">
           {FESTIVALS.map((fest) => (
-            <div key={fest.name} onClick={() => setSelectedFest(fest)} className="cursor-pointer">
-              <FestivalCard fest={fest} />
-            </div>
+            <FestivalCard
+              key={fest.name}
+              fest={fest}
+              onOpen={() => setSelectedFest(fest)}
+            />
           ))}
         </div>
       </div>
@@ -72,7 +74,6 @@ export default function FestivalHub() {
       {/* --- EXPANDED DETAIL VIEW --- */}
       {selectedFest && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col md:flex-row overflow-y-auto animate-in slide-in-from-bottom duration-300">
-          {/* Left Side: Info */}
           <div className="flex-1 p-8 md:p-16 space-y-8">
             <button onClick={() => setSelectedFest(null)} className="text-white/50 hover:text-white font-bold uppercase text-xs mb-8 flex items-center gap-2">
               ← Close
@@ -84,7 +85,7 @@ export default function FestivalHub() {
               <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Festival Details</h3>
               <div className="grid grid-cols-1 gap-4">
                 {selectedFest.details.map((detail, i) => (
-                  <div key={i} className="p-4 bg-white/5 border border-white/10 rounded-2xl font-bold">
+                  <div key={i} className="p-4 bg-white/5 border border-white/10 rounded-2xl font-bold italic">
                     {detail}
                   </div>
                 ))}
@@ -92,7 +93,6 @@ export default function FestivalHub() {
             </div>
           </div>
 
-          {/* Right Side: Squad List */}
           <div className="w-full md:w-96 bg-zinc-950 border-l border-white/10 p-8">
             <h3 className="text-xl font-black uppercase mb-8">The Squad</h3>
             <SquadList festivalName={selectedFest.name} />
@@ -103,7 +103,6 @@ export default function FestivalHub() {
   );
 }
 
-// Separate component for the Squad List to handle its own loading
 function SquadList({ festivalName }: { festivalName: string }) {
   const [attendees, setAttendees] = useState<Attendee[]>([]);
 
@@ -113,12 +112,20 @@ function SquadList({ festivalName }: { festivalName: string }) {
       if (data) setAttendees(data);
     };
     fetch();
+
+    const channel = supabase
+      .channel(`squad-${festivalName}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'squad', filter: `festival_name=eq.${festivalName}` },
+        (payload) => setAttendees(prev => [...prev, payload.new as Attendee]))
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, [festivalName]);
 
   return (
     <div className="space-y-4">
       {attendees.map((person, i) => (
-        <div key={i} className="flex items-center gap-4 bg-white/5 p-3 rounded-2xl border border-white/5">
+        <div key={i} className="flex items-center gap-4 bg-white/5 p-3 rounded-2xl border border-white/5 animate-in fade-in zoom-in duration-300">
           <img src={person.user_pfp} className="w-12 h-12 rounded-full border-2 border-black" alt="" />
           <span className="font-bold">{person.user_name}</span>
         </div>
@@ -128,16 +135,66 @@ function SquadList({ festivalName }: { festivalName: string }) {
   );
 }
 
-// Simplified Card for the Main List
-function FestivalCard({ fest }: { fest: Festival }) {
+function FestivalCard({ fest, onOpen }: { fest: Festival, onOpen: () => void }) {
+  const [isGoing, setIsGoing] = useState(false);
+  const MY_NAME = "Kendrick";
+  const MY_PFP = `https://api.dicebear.com/7.x/avataaars/svg?seed=${MY_NAME}`;
+
+  useEffect(() => {
+    const checkStatus = async () => {
+      const { data } = await supabase
+        .from('squad')
+        .select('*')
+        .eq('festival_name', fest.name)
+        .eq('user_name', MY_NAME);
+      if (data && data.length > 0) setIsGoing(true);
+    };
+    checkStatus();
+  }, [fest.name]);
+
+  const handleJoin = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevents opening the detail view when clicking the button
+    if (isGoing) return;
+
+    const { error } = await supabase
+      .from('squad')
+      .insert([{ festival_name: fest.name, user_name: MY_NAME, user_pfp: MY_PFP }]);
+
+    if (!error) setIsGoing(true);
+  };
+
   return (
-    <div className="relative h-[300px] w-full rounded-[2.5rem] overflow-hidden bg-zinc-900 border border-white/10 shadow-xl active:scale-95 transition-all">
-      <img src={fest.image} className="absolute inset-0 w-full h-full object-contain p-12 opacity-50" alt="" />
+    <div
+      onClick={onOpen}
+      className="relative h-[300px] w-full rounded-[2.5rem] overflow-hidden bg-zinc-900 border border-white/10 shadow-xl active:scale-[0.98] transition-all group cursor-pointer"
+    >
+      <img src={fest.image} className="absolute inset-0 w-full h-full object-contain p-12 opacity-50 group-hover:opacity-70 transition-opacity" alt="" />
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+
       <div className="absolute bottom-8 left-8">
-        <h2 className="text-4xl font-black uppercase tracking-tighter">{fest.name}</h2>
-        <p className="text-xs font-bold text-white/50 uppercase tracking-widest">{fest.location}</p>
+        <h2 className="text-4xl font-black uppercase tracking-tighter leading-none">{fest.name}</h2>
+        <p className="text-xs font-bold text-white/40 uppercase tracking-[0.3em] mt-1">{fest.location}</p>
       </div>
+
+      {/* Floating Action Button */}
+      <button
+        onClick={handleJoin}
+        className={`absolute bottom-6 right-6 w-14 h-14 rounded-full flex items-center justify-center transition-all shadow-2xl border-2 ${isGoing
+            ? "bg-green-500 border-green-400 text-white"
+            : "bg-white border-white text-black hover:scale-110 active:scale-90"
+          }`}
+      >
+        {isGoing ? (
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+          </svg>
+        ) : (
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+        )}
+      </button>
     </div>
   );
 }
