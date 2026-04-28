@@ -42,7 +42,7 @@ export default function FestivalHub() {
   );
 }
 
-function FestivalCard({ fest }) {
+function FestivalCard({ fest }: { fest: any }) {
   const [daysLeft, setDaysLeft] = useState(0);
 
   useEffect(() => {
