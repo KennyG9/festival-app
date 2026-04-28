@@ -1,10 +1,22 @@
 "use client";
-const FESTIVALS = [
+/* eslint-disable @next/next/no-img-element */
+import React, { useState, useEffect } from 'react';
+
+// This is the "Rulebook" that stops the errors
+interface Festival {
+  name: string;
+  location: string;
+  date: string;
+  image: string;
+  friends: { name: string; pfp: string }[];
+}
+
+const FESTIVALS: Festival[] = [
   {
     name: "Lost Lands",
     location: "Thornville, OH",
     date: "2026-09-18",
-    image: "https://www.lostlandsfestival.com/wp-content/uploads/2024/01/LL24_Social_IG_1080x1080_V1.jpg", // Temporary link
+    image: "https://www.lostlandsfestival.com/wp-content/uploads/2024/01/LL24_Social_IG_1080x1080_V1.jpg",
     friends: [{ name: "User", pfp: "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" }]
   },
   {
@@ -23,8 +35,6 @@ const FESTIVALS = [
   }
 ];
 
-import React, { useState, useEffect } from 'react';
-
 export default function FestivalHub() {
   return (
     <main className="min-h-screen bg-black text-white p-4 font-sans">
@@ -42,7 +52,7 @@ export default function FestivalHub() {
   );
 }
 
-function FestivalCard({ fest }: { fest: any }) {
+function FestivalCard({ fest }: { fest: Festival }) {
   const [daysLeft, setDaysLeft] = useState(0);
 
   useEffect(() => {
@@ -55,13 +65,9 @@ function FestivalCard({ fest }: { fest: any }) {
 
   return (
     <div className="relative h-72 w-full rounded-[2.5rem] overflow-hidden group border border-white/10">
-      {/* Background Image */}
       <img src={fest.image} alt={fest.name} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-
-      {/* Visual Polish: Gradient overlay for text readability */}
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
 
-      {/* Card Content */}
       <div className="absolute inset-0 p-8 flex flex-col justify-between">
         <div>
           <span className="bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest">{fest.location}</span>
@@ -74,7 +80,6 @@ function FestivalCard({ fest }: { fest: any }) {
             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Days Remaining</span>
           </div>
 
-          {/* Friend Avatars - We'll link these to your friends later */}
           <div className="flex -space-x-3">
             <div className="w-12 h-12 rounded-full border-2 border-black bg-yellow-400 flex items-center justify-center text-black font-bold text-xs">Me</div>
             <div className="w-12 h-12 rounded-full border-2 border-black bg-purple-500 flex items-center justify-center text-white font-bold text-xs">+</div>
