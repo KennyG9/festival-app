@@ -17,7 +17,7 @@ const FESTIVALS: Festival[] = [
     name: "Lost Lands",
     location: "Thornville, Ohio",
     date: "2026-09-18",
-    image: "https://www.lostlandsfestival.com/wp-content/uploads/2024/01/LL24_Social_IG_1080x1080_V1.jpg",
+    image: "https://www.lostlandsfestival.com/wp-content/uploads/2026/01/Lost_Lands_2026_Logo_WithDatesandLocation_1000px.png",
     friends: [
       { name: "Kendrick", pfp: "https://api.dicebear.com/7.x/avataaars/svg?seed=Kendrick" },
       { name: "Friend1", pfp: "https://api.dicebear.com/7.x/avataaars/svg?seed=Friend1" }
