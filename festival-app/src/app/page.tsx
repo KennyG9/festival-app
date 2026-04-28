@@ -27,7 +27,7 @@ const FESTIVALS: Festival[] = [
     name: "EDC Orlando",
     location: "Orlando, Florida",
     date: "2026-11-06",
-    image: "https://orlando.electricdaisycarnival.com/wp-content/uploads/sites/13/2023/11/edco23_social_ig_1080x1080_lineup.jpg",
+    image: "https://static-label.frontgatetickets.com/label/1634/img/header.png",
     friends: [{ name: "Kendrick", pfp: "https://api.dicebear.com/7.x/avataaars/svg?seed=Kendrick" }]
   },
   {
@@ -75,7 +75,7 @@ function FestivalCard({ fest }: { fest: Festival }) {
       <img
         src={fest.image}
         alt=""
-        className="absolute inset-0 w-full h-full object-cover object-top transition-transform duration-1000 group-hover:scale-110 select-none"
+        className="absolute inset-0 w-full h-full object-contain object-top transition-transform duration-1000 group-hover:scale-110 select-none"
       />
 
       {/* Premium Gradient Overlay */}
