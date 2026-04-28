@@ -27,14 +27,14 @@ const FESTIVALS: Festival[] = [
     name: "EDC Orlando",
     location: "Orlando, Florida",
     date: "2026-11-06",
-    image: "https://static-label.frontgatetickets.com/label/1634/img/header.png",
+    image: "https://d3vhc53cl8e8km.cloudfront.net/hello-staging/wp-content/uploads/sites/44/2025/11/17172609/edco_2026_mk_ps_fs_seo_1200x630_r01.jpg",
     friends: [{ name: "Kendrick", pfp: "https://api.dicebear.com/7.x/avataaars/svg?seed=Kendrick" }]
   },
   {
     name: "Cyclops Cove 4",
     location: "Boca Raton, Florida",
     date: "2026-12-04",
-    image: "https://pbs.twimg.com/media/F9F2A6rX0AA0X6X.jpg",
+    image: "https://d3vhc53cl8e8km.cloudfront.net/hello-staging/wp-content/uploads/2026/01/21190300/BjPk34sanaF62djjVmwlSzWUelCf6j0xXHFlrmNo-972x597.png",
     friends: []
   }
 ];
