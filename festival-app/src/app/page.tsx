@@ -70,22 +70,22 @@ function FestivalCard({ fest }: { fest: Festival }) {
   }, [fest.date]);
 
   return (
-    <div className="relative h-[480px] w-full rounded-[3rem] overflow-hidden group border border-white/10 shadow-2xl">
-      {/* Background Official Image */}
+    <div className="relative h-[480px] w-full rounded-[3rem] overflow-hidden group border border-white/10 shadow-2xl bg-zinc-900">
+      {/* Background Image - Added "object-top" and "select-none" to prevent text leaks */}
       <img
         src={fest.image}
-        alt={fest.name}
-        className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
+        alt=""
+        className="absolute inset-0 w-full h-full object-cover object-top transition-transform duration-1000 group-hover:scale-110 select-none"
       />
 
       {/* Premium Gradient Overlay */}
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
 
       {/* App Content UI */}
-      <div className="absolute inset-0 p-8 flex flex-col justify-between">
+      <div className="absolute inset-0 p-8 flex flex-col justify-between pointer-events-none">
 
-        {/* Top Section: Name and Location (No more clipping bubble) */}
-        <div>
+        {/* Top Section */}
+        <div className="pointer-events-auto">
           <h2 className="text-5xl font-black leading-none uppercase tracking-tighter drop-shadow-2xl">
             {fest.name}
           </h2>
@@ -94,8 +94,8 @@ function FestivalCard({ fest }: { fest: Festival }) {
           </p>
         </div>
 
-        {/* Bottom Section: Countdown, Friends, and Action Button */}
-        <div className="space-y-6">
+        {/* Bottom Section */}
+        <div className="space-y-6 pointer-events-auto">
           <div className="flex justify-between items-end">
             <div className="flex flex-col">
               <span className="text-6xl font-black tracking-tighter leading-none">{daysLeft}</span>
@@ -109,7 +109,7 @@ function FestivalCard({ fest }: { fest: Festival }) {
                   key={i}
                   src={friend.pfp}
                   className="w-14 h-14 rounded-full border-4 border-black shadow-lg"
-                  alt={friend.name}
+                  alt=""
                 />
               ))}
               <div className="w-14 h-14 rounded-full border-4 border-black bg-white/10 backdrop-blur-md flex items-center justify-center text-white font-bold text-sm">+</div>
