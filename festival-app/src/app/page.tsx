@@ -29,7 +29,7 @@ const FESTIVALS: Festival[] = [
     date: "2026-09-18",
     image: "https://www.lostlandsfestival.com/wp-content/uploads/2026/01/Lost_Lands_2026_Logo_WithDatesandLocation_1000px.png",
     description: "The prehistoric paradise returns. 500,000 watts of bass and giant dinosaurs.",
-    details: ["Camping: GA Car", "Entry: Thursday", "Vibe: Heavy Bass"]
+    details: ["Camping: GA Car", "Entry: Thursday", "Tickets|https://lostlands.frontgatetickets.com/event/7nuf54cayx3j1p90"]
   },
   {
     name: "EDC Orlando",
@@ -84,11 +84,13 @@ export default function FestivalHub() {
             <div className="space-y-4 pt-8">
               <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Festival Details</h3>
               <div className="grid grid-cols-1 gap-4">
-                {selectedFest.details.map((detail, i) => (
-                  <div key={i} className="p-4 bg-white/5 border border-white/10 rounded-2xl font-bold italic">
-                    {detail}
-                  </div>
-                ))}
+                {selectedFest.details.map((detail, i) => {
+                  // Splits "Tickets|https://..." into label and link
+                  const hasLink = detail.includes('|');
+                  const [label, link] = hasLink ? detail.split('|') : [detail, null];
+
+                  return <DetailItem key={i} label={label} link={link} />;
+                })}
               </div>
             </div>
           </div>
@@ -180,8 +182,8 @@ function FestivalCard({ fest, onOpen }: { fest: Festival, onOpen: () => void }) 
       <button
         onClick={handleJoin}
         className={`absolute bottom-6 right-6 w-14 h-14 rounded-full flex items-center justify-center transition-all shadow-2xl border-2 ${isGoing
-            ? "bg-green-500 border-green-400 text-white"
-            : "bg-white border-white text-black hover:scale-110 active:scale-90"
+          ? "bg-green-500 border-green-400 text-white"
+          : "bg-white border-white text-black hover:scale-110 active:scale-90"
           }`}
       >
         {isGoing ? (
@@ -195,6 +197,45 @@ function FestivalCard({ fest, onOpen }: { fest: Festival, onOpen: () => void }) 
           </svg>
         )}
       </button>
+    </div>
+  );
+}
+
+function DetailItem({ label, link }: { label: string; link: string | null }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  if (!link) {
+    return (
+      <div className="p-4 bg-white/5 border border-white/10 rounded-2xl font-bold italic text-white/90">
+        {label}
+      </div>
+    );
+  }
+
+  return (
+    <div className="border border-white/10 rounded-2xl overflow-hidden transition-all bg-white/5">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full p-4 flex justify-between items-center font-bold italic hover:bg-white/5 transition-colors"
+      >
+        <span>{label}</span>
+        <span className={`transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>
+          ▼
+        </span>
+      </button>
+
+      {isOpen && (
+        <div className="p-4 pt-0 animate-in slide-in-from-top-2 duration-200">
+          <a
+            href={link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block w-full p-3 bg-white/10 rounded-xl text-center text-sm font-black uppercase tracking-widest hover:bg-white text-black transition-colors"
+          >
+            Open Official Link ↗
+          </a>
+        </div>
+      )}
     </div>
   );
 }
