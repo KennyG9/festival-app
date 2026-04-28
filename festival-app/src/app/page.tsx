@@ -2,7 +2,7 @@
 /* eslint-disable @next/next/no-img-element */
 import React, { useState, useEffect } from 'react';
 
-// This is the "Rulebook" that stops the errors
+// 1. The "Rulebook" - This defines exactly what a Festival looks like
 interface Festival {
   name: string;
   location: string;
@@ -11,10 +11,11 @@ interface Festival {
   friends: { name: string; pfp: string }[];
 }
 
+// 2. Your Festival Data - All your dates and locations are here
 const FESTIVALS: Festival[] = [
   {
     name: "Lost Lands",
-    location: "Thornville, OH",
+    location: "Thornville, Ohio",
     date: "2026-09-18",
     image: "https://www.lostlandsfestival.com/wp-content/uploads/2024/01/LL24_Social_IG_1080x1080_V1.jpg",
     friends: [
@@ -24,14 +25,14 @@ const FESTIVALS: Festival[] = [
   },
   {
     name: "EDC Orlando",
-    location: "Orlando, FL",
+    location: "Orlando, Florida",
     date: "2026-11-06",
     image: "https://orlando.electricdaisycarnival.com/wp-content/uploads/sites/13/2023/11/edco23_social_ig_1080x1080_lineup.jpg",
     friends: [{ name: "Kendrick", pfp: "https://api.dicebear.com/7.x/avataaars/svg?seed=Kendrick" }]
   },
   {
     name: "Cyclops Cove 4",
-    location: "Boca Raton, FL",
+    location: "Boca Raton, Florida",
     date: "2026-12-04",
     image: "https://pbs.twimg.com/media/F9F2A6rX0AA0X6X.jpg",
     friends: []
@@ -40,13 +41,15 @@ const FESTIVALS: Festival[] = [
 
 export default function FestivalHub() {
   return (
-    <main className="min-h-screen bg-black text-white p-4 font-sans">
-      <header className="mb-8 pt-4">
-        <h1 className="text-4xl font-black tracking-tighter italic">FESTIVAL HUB</h1>
-        <p className="text-gray-500 font-medium">The 2026 Season</p>
+    <main className="min-h-screen bg-black text-white p-6 font-sans">
+      <header className="mb-10 pt-6 flex justify-between items-end">
+        <div>
+          <h1 className="text-4xl font-black tracking-tighter italic leading-none">SQUAD HUB</h1>
+          <p className="text-gray-500 font-bold mt-1 uppercase text-xs tracking-widest">{FESTIVALS.length} Events Scheduled</p>
+        </div>
       </header>
 
-      <div className="space-y-6">
+      <div className="space-y-8">
         {FESTIVALS.map((fest) => (
           <FestivalCard key={fest.name} fest={fest} />
         ))}
@@ -67,40 +70,56 @@ function FestivalCard({ fest }: { fest: Festival }) {
   }, [fest.date]);
 
   return (
-    <div className="relative h-[450px] w-full rounded-[2.5rem] overflow-hidden group border border-white/10 mb-4 shadow-2xl">
-      {/* Background Image */}
-      <img src={fest.image} alt={fest.name} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+    <div className="relative h-[480px] w-full rounded-[3rem] overflow-hidden group border border-white/10 shadow-2xl">
+      {/* Background Official Image */}
+      <img
+        src={fest.image}
+        alt={fest.name}
+        className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
+      />
 
-      {/* Dark Gradient Overlay */}
+      {/* Premium Gradient Overlay */}
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
 
-      {/* Content Container */}
+      {/* App Content UI */}
       <div className="absolute inset-0 p-8 flex flex-col justify-between">
+
+        {/* Top Section: Name and Location (No more clipping bubble) */}
         <div>
-          <span className="bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest">{fest.location}</span>
-          <h2 className="text-4xl font-black mt-2 leading-none uppercase tracking-tighter">{fest.name}</h2>
+          <h2 className="text-5xl font-black leading-none uppercase tracking-tighter drop-shadow-2xl">
+            {fest.name}
+          </h2>
+          <p className="text-sm font-bold text-white/60 mt-2 uppercase tracking-[0.3em]">
+            {fest.location}
+          </p>
         </div>
 
+        {/* Bottom Section: Countdown, Friends, and Action Button */}
         <div className="space-y-6">
           <div className="flex justify-between items-end">
             <div className="flex flex-col">
-              <span className="text-5xl font-black tracking-tighter">{daysLeft}</span>
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Days Remaining</span>
+              <span className="text-6xl font-black tracking-tighter leading-none">{daysLeft}</span>
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mt-1">Days Remaining</span>
             </div>
 
             {/* Friend Avatars */}
-            <div className="flex -space-x-3">
+            <div className="flex -space-x-4">
               {fest.friends.map((friend, i) => (
-                <img key={i} src={friend.pfp} className="w-12 h-12 rounded-full border-2 border-black" alt={friend.name} />
+                <img
+                  key={i}
+                  src={friend.pfp}
+                  className="w-14 h-14 rounded-full border-4 border-black shadow-lg"
+                  alt={friend.name}
+                />
               ))}
-              <div className="w-12 h-12 rounded-full border-2 border-black bg-white/10 backdrop-blur-sm flex items-center justify-center text-white font-bold text-xs">+</div>
+              <div className="w-14 h-14 rounded-full border-4 border-black bg-white/10 backdrop-blur-md flex items-center justify-center text-white font-bold text-sm">+</div>
             </div>
           </div>
 
-          {/* THE NEW BUTTON */}
+          {/* Interactive Action Button */}
           <button
-            onClick={() => alert(`Success! You're added to ${fest.name} squad.`)}
-            className="w-full py-4 bg-white text-black font-black uppercase tracking-widest rounded-2xl hover:bg-gray-200 transition-all active:scale-95 shadow-xl"
+            onClick={() => alert(`SQUAD UPDATED: You are locked in for ${fest.name}!`)}
+            className="w-full py-5 bg-white text-black font-black uppercase tracking-widest rounded-2xl hover:bg-gray-200 transition-all active:scale-95 shadow-2xl text-sm"
           >
             I&apos;m Going 🤘
           </button>
