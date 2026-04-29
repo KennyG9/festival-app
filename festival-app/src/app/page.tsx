@@ -60,8 +60,8 @@ const getAvatarUrl = (type: string) => {
 export default function FestivalHub() {
   const [selectedFest, setSelectedFest] = useState<Festival | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showSurvivalWall, setShowSurvivalWall] = useState(false); // New state for the wall
 
-  // 1. Initialise State from localStorage
   const [userName, setUserName] = useState(() => {
     if (typeof window !== "undefined") return localStorage.getItem('squad-user-name') || "Guest";
     return "Guest";
@@ -90,30 +90,38 @@ export default function FestivalHub() {
             </p>
           </div>
 
-          <div className="flex gap-3">
-            {/* NEW: Share Button */}
+          <div className="flex items-center gap-2">
+            {/* SURVIVAL WALL BUTTON */}
+            <button
+              onClick={() => setShowSurvivalWall(true)}
+              className="hidden md:flex h-12 px-4 rounded-2xl bg-orange-500/10 border border-orange-500/20 items-center gap-2 hover:bg-orange-500/20 transition-all active:scale-95"
+            >
+              <span className="text-[10px] font-black uppercase tracking-widest text-orange-500">Survival Wall</span>
+            </button>
+
+            {/* MESSAGES ICON */}
+            <button className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all active:scale-90">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+              </svg>
+            </button>
+
+            {/* SHARE BUTTON */}
             <button
               onClick={async () => {
-                const shareData = {
-                  title: 'SQUAD HUB',
-                  text: 'Lock in for the fests with the squad!',
-                  url: window.location.href,
-                };
+                const shareData = { title: 'SQUAD HUB', url: window.location.href };
                 try {
-                  // Triggers native mobile share menu
                   if (navigator.share) {
                     await navigator.share(shareData);
                   } else {
-                    // Fallback for desktop: Copy to clipboard
                     await navigator.clipboard.writeText(window.location.href);
-                    alert('Link copied to clipboard! Send it to the squad.');
+                    alert('Link Copied!');
                   }
                 } catch (err) {
-                  console.log('Share failed', err);
+                  console.error('Share failed:', err);
                 }
               }}
-              className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all shadow-lg active:scale-90"
-              title="Share App"
+              className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all active:scale-90"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
@@ -122,10 +130,10 @@ export default function FestivalHub() {
               </svg>
             </button>
 
-            {/* Settings Toggle Icon */}
+            {/* PROFILE */}
             <button
               onClick={() => setShowSettings(true)}
-              className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all shadow-lg active:scale-90 overflow-hidden"
+              className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden active:scale-90"
             >
               <img src={getAvatarUrl(avatarType)} className="w-9 h-9" alt="Profile" />
             </button>
@@ -153,9 +161,7 @@ export default function FestivalHub() {
               <img src={getAvatarUrl(avatarType)} className="w-24 h-24 rounded-full border-4 border-white/10 mx-auto" alt="Avatar" />
               <h2 className="text-2xl font-black uppercase italic tracking-tighter">Profile Settings</h2>
             </div>
-
             <div className="space-y-6">
-              {/* Name Input */}
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-2">Display Name</label>
                 <input
@@ -165,32 +171,36 @@ export default function FestivalHub() {
                   className="w-full bg-white/5 border border-white/10 p-4 rounded-2xl font-bold text-white outline-none focus:border-white/30"
                 />
               </div>
-
-              {/* Avatar Picker */}
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-2">Choose Avatar</label>
                 <div className="grid grid-cols-2 gap-4">
-                  <button
-                    onClick={() => saveSettings(userName, 'boy')}
-                    className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${avatarType === 'boy' ? 'border-green-500 bg-green-500/10' : 'border-white/10 bg-white/5 opacity-50'}`}
-                  >
+                  <button onClick={() => saveSettings(userName, 'boy')} className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${avatarType === 'boy' ? 'border-green-500 bg-green-500/10' : 'border-white/10 bg-white/5 opacity-50'}`}>
                     <img src={getAvatarUrl('boy')} className="w-12 h-12" alt="Boy" />
                     <span className="text-[10px] font-bold uppercase">Boy</span>
                   </button>
-                  <button
-                    onClick={() => saveSettings(userName, 'girl')}
-                    className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${avatarType === 'girl' ? 'border-green-500 bg-green-500/10' : 'border-white/10 bg-white/5 opacity-50'}`}
-                  >
+                  <button onClick={() => saveSettings(userName, 'girl')} className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${avatarType === 'girl' ? 'border-green-500 bg-green-500/10' : 'border-white/10 bg-white/5 opacity-50'}`}>
                     <img src={getAvatarUrl('girl')} className="w-12 h-12" alt="Girl" />
                     <span className="text-[10px] font-bold uppercase">Girl</span>
                   </button>
                 </div>
               </div>
             </div>
+            <button onClick={() => setShowSettings(false)} className="w-full py-4 bg-white text-black font-black uppercase tracking-widest rounded-2xl">Done</button>
+          </div>
+        </div>
+      )}
 
-            <button onClick={() => setShowSettings(false)} className="w-full py-4 bg-white text-black font-black uppercase tracking-widest rounded-2xl">
-              Done
-            </button>
+      {/* --- SURVIVAL WALL DRAWER --- */}
+      {showSurvivalWall && (
+        <div className="fixed inset-0 z-[70] bg-zinc-950 p-6 overflow-y-auto animate-in slide-in-from-right duration-300">
+          <div className="max-w-2xl mx-auto space-y-8">
+            <header className="flex justify-between items-center">
+              <h2 className="text-3xl font-black italic tracking-tighter text-orange-500">SURVIVAL WALL</h2>
+              <button onClick={() => setShowSurvivalWall(false)} className="text-white/50 font-bold uppercase text-xs">Close</button>
+            </header>
+            <div className="p-8 bg-orange-500/5 border border-orange-500/20 rounded-[2rem] text-center">
+              <p className="text-orange-500 font-bold italic text-sm">Offline sync coming soon...</p>
+            </div>
           </div>
         </div>
       )}
