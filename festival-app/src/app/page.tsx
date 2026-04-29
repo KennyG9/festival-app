@@ -342,28 +342,113 @@ function DetailItem({ label, link }: { label: string; link: string | null }) {
 }
 
 function MessageWall({ isOpen, onClose, userName, userPfp }: { isOpen: boolean, onClose: () => void, userName: string, userPfp: string }) {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [newMessage, setNewMessage] = useState("");
+  // 1. Lazy Initializer: Grabs cache BEFORE the first render to prevent ESLint errors
+  const [messages, setMessages] = useState<Message[]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem('squad-wall-cache');
+      return saved ? JSON.parse(saved) : [];
+    }
+    return [];
+  });
 
+  const [newMessage, setNewMessage] = useState("");
+  const [isOnline, setIsOnline] = useState(true);
+
+  // 2. Monitor Connection Status
+  useEffect(() => {
+    const updateStatus = () => setIsOnline(navigator.onLine);
+    window.addEventListener('online', updateStatus);
+    window.addEventListener('offline', updateStatus);
+    return () => {
+      window.removeEventListener('online', updateStatus);
+      window.removeEventListener('offline', updateStatus);
+    };
+  }, []);
+
+  // 3. Main Sync Logic (Online Only)
   useEffect(() => {
     if (!isOpen) return;
+
     const fetchMessages = async () => {
+      if (!navigator.onLine) return;
       const { data } = await supabase.from('messages').select('*').order('created_at', { ascending: false }).limit(20);
-      if (data) setMessages(data as Message[]);
+      if (data) {
+        setMessages(data as Message[]);
+        localStorage.setItem('squad-wall-cache', JSON.stringify(data));
+      }
     };
+
     fetchMessages();
+
     const channel = supabase.channel('live-wall')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' },
-        (payload) => setMessages(prev => [payload.new as Message, ...prev]))
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+        setMessages(prev => {
+          const updated = [payload.new as Message, ...prev];
+          localStorage.setItem('squad-wall-cache', JSON.stringify(updated.slice(0, 20)));
+          return updated;
+        });
+      })
       .subscribe();
+
     return () => { supabase.removeChannel(channel); };
   }, [isOpen]);
 
+  // 4. Send Message with Outbox Support
   const sendMessage = async () => {
     if (!newMessage.trim()) return;
-    const { error } = await supabase.from('messages').insert([{ user_name: userName, user_pfp: userPfp, content: newMessage, type: 'status' }]);
-    if (!error) setNewMessage("");
+
+    const pendingMsg: Message = {
+      id: Math.random().toString(36).substr(2, 9), // Fallback ID for offline tracking
+      created_at: new Date().toISOString(),
+      user_name: userName,
+      user_pfp: userPfp,
+      content: newMessage,
+      type: 'status'
+    };
+
+    // Optimistic UI update
+    setMessages(prev => [pendingMsg, ...prev]);
+    setNewMessage("");
+
+    if (!navigator.onLine) {
+      const outbox = JSON.parse(localStorage.getItem('squad-outbox') || '[]');
+      localStorage.setItem('squad-outbox', JSON.stringify([...outbox, pendingMsg]));
+      return;
+    }
+
+    const { error } = await supabase.from('messages').insert([{
+      user_name: userName,
+      user_pfp: userPfp,
+      content: newMessage,
+      type: 'status'
+    }]);
+
+    if (error) {
+      const outbox = JSON.parse(localStorage.getItem('squad-outbox') || '[]');
+      localStorage.setItem('squad-outbox', JSON.stringify([...outbox, pendingMsg]));
+    }
   };
+
+  // 5. Background Sync: Auto-send when signal returns
+  useEffect(() => {
+    if (isOnline) {
+      const processOutbox = async () => {
+        const outbox = JSON.parse(localStorage.getItem('squad-outbox') || '[]');
+        if (outbox.length === 0) return;
+
+        for (const msg of outbox) {
+          await supabase.from('messages').insert([{
+            user_name: msg.user_name,
+            user_pfp: msg.user_pfp,
+            content: msg.content,
+            type: 'status'
+          }]);
+        }
+        localStorage.removeItem('squad-outbox');
+      };
+      processOutbox();
+    }
+  }, [isOnline]);
 
   if (!isOpen) return null;
 
@@ -372,10 +457,16 @@ function MessageWall({ isOpen, onClose, userName, userPfp }: { isOpen: boolean, 
       <div className="p-6 border-b border-white/10 flex justify-between items-center bg-zinc-950">
         <div>
           <h2 className="text-2xl font-black italic tracking-tighter text-white">SQUAD MESSAGES</h2>
-          <p className="text-[10px] font-bold text-green-500 uppercase tracking-widest animate-pulse">Live Signal</p>
+          <div className="flex items-center gap-2">
+            <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500 animate-pulse' : 'bg-zinc-600'}`} />
+            <p className={`text-[10px] font-bold uppercase tracking-widest ${isOnline ? 'text-green-500' : 'text-zinc-500'}`}>
+              {isOnline ? 'Live Signal' : 'Offline Mode'}
+            </p>
+          </div>
         </div>
         <button onClick={onClose} className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center font-bold text-white">✕</button>
       </div>
+
       <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-black">
         {messages.map((msg) => (
           <div key={msg.id} className="flex gap-4 animate-in fade-in slide-in-from-bottom-2">
@@ -383,18 +474,32 @@ function MessageWall({ isOpen, onClose, userName, userPfp }: { isOpen: boolean, 
             <div className="flex-1 space-y-1">
               <div className="flex items-center gap-2">
                 <span className="font-black text-xs uppercase tracking-tight text-white">{msg.user_name}</span>
-                <span className="text-[9px] text-zinc-500 font-bold uppercase">{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                <span className="text-[9px] text-zinc-500 font-bold uppercase">
+                  {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
               </div>
-              <div className="p-4 bg-zinc-900 border border-white/5 rounded-2xl rounded-tl-none text-sm font-medium leading-relaxed text-zinc-200">{msg.content}</div>
+              <div className="p-4 bg-zinc-900 border border-white/5 rounded-2xl rounded-tl-none text-sm font-medium leading-relaxed text-zinc-200">
+                {msg.content}
+              </div>
             </div>
           </div>
         ))}
         {messages.length === 0 && <p className="text-center text-zinc-600 italic py-20">No pings yet.</p>}
       </div>
+
       <div className="p-6 bg-zinc-950 border-t border-white/10 pb-10">
         <div className="flex gap-3 bg-white/5 p-2 rounded-[2rem] border border-white/10 focus-within:border-white/30 transition-all">
-          <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && sendMessage()} placeholder="Drop a pin or status..." className="flex-1 bg-transparent px-4 py-2 outline-none font-bold text-sm text-white" />
-          <button onClick={sendMessage} className="bg-white text-black px-6 py-2 rounded-full font-black uppercase text-[10px] tracking-widest active:scale-95 transition-all">Send</button>
+          <input
+            type="text"
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+            placeholder={isOnline ? "Drop a pin or status..." : "Offline: Queuing message..."}
+            className="flex-1 bg-transparent px-4 py-2 outline-none font-bold text-sm text-white"
+          />
+          <button onClick={sendMessage} className="bg-white text-black px-6 py-2 rounded-full font-black uppercase text-[10px] tracking-widest active:scale-95 transition-all">
+            {isOnline ? 'Send' : 'Queue'}
+          </button>
         </div>
       </div>
     </div>
