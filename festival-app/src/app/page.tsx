@@ -139,10 +139,21 @@ function SquadList({ festivalName }: { festivalName: string }) {
 
 function FestivalCard({ fest, onOpen }: { fest: Festival, onOpen: () => void }) {
   const [isGoing, setIsGoing] = useState(false);
+  const [daysLeft, setDaysLeft] = useState(0);
   const MY_NAME = "Kendrick";
   const MY_PFP = `https://api.dicebear.com/7.x/avataaars/svg?seed=${MY_NAME}`;
 
   useEffect(() => {
+    // 1. Calculate Countdown
+    const calculateDays = () => {
+      const diff = +new Date(fest.date) - +new Date();
+      setDaysLeft(Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24))));
+    };
+
+    calculateDays();
+    const timer = setInterval(calculateDays, 1000 * 60 * 60); // Update every hour
+
+    // 2. Check Join Status
     const checkStatus = async () => {
       const { data } = await supabase
         .from('squad')
@@ -152,10 +163,12 @@ function FestivalCard({ fest, onOpen }: { fest: Festival, onOpen: () => void }) 
       if (data && data.length > 0) setIsGoing(true);
     };
     checkStatus();
-  }, [fest.name]);
+
+    return () => clearInterval(timer);
+  }, [fest.name, fest.date]);
 
   const handleJoin = async (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevents opening the detail view when clicking the button
+    e.stopPropagation();
     if (isGoing) return;
 
     const { error } = await supabase
@@ -170,20 +183,26 @@ function FestivalCard({ fest, onOpen }: { fest: Festival, onOpen: () => void }) 
       onClick={onOpen}
       className="relative h-[300px] w-full rounded-[2.5rem] overflow-hidden bg-zinc-900 border border-white/10 shadow-xl active:scale-[0.98] transition-all group cursor-pointer"
     >
-      <img src={fest.image} className="absolute inset-0 w-full h-full object-contain p-12 opacity-50 group-hover:opacity-70 transition-opacity" alt="" />
+      <img src={fest.image} className="absolute inset-0 w-full h-full object-contain p-12 opacity-50 group-hover:opacity-70 transition-opacity select-none" alt="" />
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
 
       <div className="absolute bottom-8 left-8">
+        {/* The New Countdown Label */}
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-[10px] font-black text-green-500 uppercase tracking-[0.2em] animate-pulse">
+            {daysLeft} Days to go
+          </span>
+        </div>
+
         <h2 className="text-4xl font-black uppercase tracking-tighter leading-none">{fest.name}</h2>
         <p className="text-xs font-bold text-white/40 uppercase tracking-[0.3em] mt-1">{fest.location}</p>
       </div>
 
-      {/* Floating Action Button */}
       <button
         onClick={handleJoin}
         className={`absolute bottom-6 right-6 w-14 h-14 rounded-full flex items-center justify-center transition-all shadow-2xl border-2 ${isGoing
-          ? "bg-green-500 border-green-400 text-white"
-          : "bg-white border-white text-black hover:scale-110 active:scale-90"
+            ? "bg-green-500 border-green-400 text-white"
+            : "bg-white border-white text-black hover:scale-110 active:scale-90"
           }`}
       >
         {isGoing ? (
