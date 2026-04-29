@@ -90,12 +90,46 @@ export default function FestivalHub() {
             </p>
           </div>
 
-          <button
-            onClick={() => setShowSettings(true)}
-            className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all shadow-lg active:scale-90 overflow-hidden"
-          >
-            <img src={getAvatarUrl(avatarType)} className="w-9 h-9" alt="Profile" />
-          </button>
+          <div className="flex gap-3">
+            {/* NEW: Share Button */}
+            <button
+              onClick={async () => {
+                const shareData = {
+                  title: 'SQUAD HUB',
+                  text: 'Lock in for the fests with the squad!',
+                  url: window.location.href,
+                };
+                try {
+                  // Triggers native mobile share menu
+                  if (navigator.share) {
+                    await navigator.share(shareData);
+                  } else {
+                    // Fallback for desktop: Copy to clipboard
+                    await navigator.clipboard.writeText(window.location.href);
+                    alert('Link copied to clipboard! Send it to the squad.');
+                  }
+                } catch (err) {
+                  console.log('Share failed', err);
+                }
+              }}
+              className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all shadow-lg active:scale-90"
+              title="Share App"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
+                <polyline points="16 6 12 2 8 6"></polyline>
+                <line x1="12" y1="2" x2="12" y2="15"></line>
+              </svg>
+            </button>
+
+            {/* Settings Toggle Icon */}
+            <button
+              onClick={() => setShowSettings(true)}
+              className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all shadow-lg active:scale-90 overflow-hidden"
+            >
+              <img src={getAvatarUrl(avatarType)} className="w-9 h-9" alt="Profile" />
+            </button>
+          </div>
         </header>
 
         <div className="space-y-8">
