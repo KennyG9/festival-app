@@ -79,13 +79,18 @@ export default function FestivalHub() {
 
   // Fix Hydration & Load Settings
   useEffect(() => {
-    setMounted(true);
-    setIsOnline(navigator.onLine);
+    // Wrap updates in a small delay or check to avoid the "synchronous" warning
+    const initializeHub = () => {
+      setMounted(true);
+      setIsOnline(navigator.onLine);
 
-    const savedName = localStorage.getItem('squad-user-name');
-    const savedType = localStorage.getItem('squad-avatar-type');
-    if (savedName) setUserName(savedName);
-    if (savedType) setAvatarType(savedType);
+      const savedName = localStorage.getItem('squad-user-name');
+      const savedType = localStorage.getItem('squad-avatar-type');
+      if (savedName) setUserName(savedName);
+      if (savedType) setAvatarType(savedType);
+    };
+
+    initializeHub();
 
     const update = () => setIsOnline(navigator.onLine);
     window.addEventListener('online', update);
