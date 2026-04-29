@@ -1,6 +1,6 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
 // --- SUPABASE SETUP ---
@@ -31,6 +31,12 @@ interface Message {
   user_pfp: string;
   content: string;
   type: string;
+}
+
+interface ChecklistItem {
+  id: string;
+  text: string;
+  done: boolean;
 }
 
 // --- DATA ---
@@ -78,22 +84,19 @@ export default function FestivalHub() {
   const [avatarType, setAvatarType] = useState("boy");
 
   useEffect(() => {
-    const init = () => {
-      setMounted(true);
-      setIsOnline(navigator.onLine);
-      const savedName = localStorage.getItem('squad-user-name');
-      const savedType = localStorage.getItem('squad-avatar-type');
-      if (savedName) setUserName(savedName);
-      if (savedType) setAvatarType(savedType);
-    };
-    init();
+    setMounted(true);
+    setIsOnline(navigator.onLine);
+    const savedName = localStorage.getItem('squad-user-name');
+    const savedType = localStorage.getItem('squad-avatar-type');
+    if (savedName) setUserName(savedName);
+    if (savedType) setAvatarType(savedType);
 
-    const update = () => setIsOnline(navigator.onLine);
-    window.addEventListener('online', update);
-    window.addEventListener('offline', update);
+    const updateStatus = () => setIsOnline(navigator.onLine);
+    window.addEventListener('online', updateStatus);
+    window.addEventListener('offline', updateStatus);
     return () => {
-      window.removeEventListener('online', update);
-      window.removeEventListener('offline', update);
+      window.removeEventListener('online', updateStatus);
+      window.removeEventListener('offline', updateStatus);
     };
   }, []);
 
@@ -186,15 +189,14 @@ export default function FestivalHub() {
 // --- CHECKLIST & DETAIL COMPONENT ---
 function DetailItem({ label, link, isChecklist, festName }: { label: string; link: string | null; isChecklist?: boolean; festName: string }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [items, setItems] = useState<{ id: string; text: string; done: boolean }[]>([]);
-  const [inputValue, setInputValue] = useState("");
-
-  useEffect(() => {
-    if (isChecklist) {
+  const [items, setItems] = useState<ChecklistItem[]>(() => {
+    if (typeof window !== "undefined") {
       const saved = localStorage.getItem(`checklist-${festName}-${label}`);
-      if (saved) { try { setItems(JSON.parse(saved)); } catch (e) { console.error(e); } }
+      if (saved) { try { return JSON.parse(saved); } catch (e) { console.error(e); return []; } }
     }
-  }, [isChecklist, festName, label]);
+    return [];
+  });
+  const [inputValue, setInputValue] = useState("");
 
   const addItem = () => {
     if (!inputValue.trim()) return;
@@ -255,7 +257,6 @@ function MessageWall({ isOpen, onClose, userName, userPfp }: { isOpen: boolean, 
     return [];
   });
   const [newMessage, setNewMessage] = useState("");
-  const [isOnline, setIsOnline] = useState(true);
 
   useEffect(() => {
     if (!isOpen) return;
