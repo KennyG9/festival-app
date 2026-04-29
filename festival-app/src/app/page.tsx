@@ -3,10 +3,12 @@
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
+// --- SUPABASE SETUP ---
 const supabaseUrl = 'https://avnbzaskdrpyjtwvmlvs.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF2bmJ6YXNrZHJweWp0d3ZtbHZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczOTM2MDYsImV4cCI6MjA5Mjk2OTYwNn0.aKnSzoJR08jG8ayVzKjUKoWSqu4uo8tg3J3E9wKzdg4';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+// --- INTERFACES ---
 interface Attendee {
   festival_name: string;
   user_name: string;
@@ -22,6 +24,7 @@ interface Festival {
   details: string[];
 }
 
+// --- DATA ---
 const FESTIVALS: Festival[] = [
   {
     name: "Lost Lands",
@@ -29,7 +32,7 @@ const FESTIVALS: Festival[] = [
     date: "2026-09-18",
     image: "https://www.lostlandsfestival.com/wp-content/uploads/2026/01/Lost_Lands_2026_Logo_WithDatesandLocation_1000px.png",
     description: "The prehistoric paradise returns. 500,000 watts of bass and giant dinosaurs.",
-    details: ["Camping: GA Car", "Entry: Thursday", "Tickets|https://lostlands.frontgatetickets.com/event/7nuf54cayx3j1p90"]
+    details: ["Camping: GA Car", "Entry: Thursday 12am", "Tickets|https://lostlands.frontgatetickets.com/event/7nuf54cayx3j1p90"]
   },
   {
     name: "EDC Orlando",
@@ -49,15 +52,46 @@ const FESTIVALS: Festival[] = [
   }
 ];
 
+// --- MAIN HUB COMPONENT ---
 export default function FestivalHub() {
   const [selectedFest, setSelectedFest] = useState<Festival | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+
+  // Lazy Initializer: Fixes ESLint Error and avoids cascading renders
+  const [userName, setUserName] = useState(() => {
+    if (typeof window !== "undefined") {
+      const savedName = localStorage.getItem('squad-user-name');
+      return savedName || "Guest";
+    }
+    return "Guest";
+  });
+
+  const saveName = (newName: string) => {
+    setUserName(newName);
+    localStorage.setItem('squad-user-name', newName);
+  };
 
   return (
     <main className="min-h-screen bg-black text-white font-sans">
       <div className="p-6">
-        <header className="mb-10 pt-6">
-          <h1 className="text-4xl font-black italic tracking-tighter leading-none">SQUAD HUB</h1>
-          <p className="text-gray-500 font-bold mt-1 uppercase text-xs tracking-widest">Tap card for details • Click + to join</p>
+        <header className="mb-10 pt-6 flex justify-between items-center">
+          <div>
+            <h1 className="text-4xl font-black italic tracking-tighter leading-none">SQUAD HUB</h1>
+            <p className="text-gray-500 font-bold mt-1 uppercase text-[10px] tracking-widest">
+              Live Sync • Welcome, {userName}
+            </p>
+          </div>
+
+          <button
+            onClick={() => setShowSettings(true)}
+            className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all shadow-lg active:scale-90"
+          >
+            <img
+              src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${userName}`}
+              className="w-8 h-8 rounded-full"
+              alt="Profile"
+            />
+          </button>
         </header>
 
         <div className="space-y-8">
@@ -66,10 +100,45 @@ export default function FestivalHub() {
               key={fest.name}
               fest={fest}
               onOpen={() => setSelectedFest(fest)}
+              currentUser={userName}
             />
           ))}
         </div>
       </div>
+
+      {/* --- SETTINGS DRAWER --- */}
+      {showSettings && (
+        <div className="fixed inset-0 z-[60] bg-black/90 backdrop-blur-md flex items-center justify-center p-6 animate-in fade-in duration-300">
+          <div className="bg-zinc-900 border border-white/10 w-full max-w-sm rounded-[3rem] p-10 space-y-8 shadow-2xl">
+            <div className="text-center space-y-4">
+              <img
+                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${userName}`}
+                className="w-24 h-24 rounded-full border-4 border-white/10 mx-auto transition-transform duration-500"
+                alt="Avatar"
+              />
+              <h2 className="text-2xl font-black uppercase italic tracking-tighter">Edit Profile</h2>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-2 text-zinc-500">Display Name</label>
+              <input
+                type="text"
+                value={userName}
+                onChange={(e) => saveName(e.target.value)}
+                placeholder="Enter your name..."
+                className="w-full bg-white/5 border border-white/10 p-4 rounded-2xl font-bold text-white outline-none focus:border-white/30 transition-all"
+              />
+            </div>
+
+            <button
+              onClick={() => setShowSettings(false)}
+              className="w-full py-4 bg-white text-black font-black uppercase tracking-widest rounded-2xl shadow-xl active:scale-95 transition-all"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* --- EXPANDED DETAIL VIEW --- */}
       {selectedFest && (
@@ -82,13 +151,11 @@ export default function FestivalHub() {
             <p className="text-xl text-white/70 max-w-xl">{selectedFest.description}</p>
 
             <div className="space-y-4 pt-8">
-              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Festival Details</h3>
+              <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Festival Details</h3>
               <div className="grid grid-cols-1 gap-4">
                 {selectedFest.details.map((detail, i) => {
-                  // Splits "Tickets|https://..." into label and link
                   const hasLink = detail.includes('|');
                   const [label, link] = hasLink ? detail.split('|') : [detail, null];
-
                   return <DetailItem key={i} label={label} link={link} />;
                 })}
               </div>
@@ -104,6 +171,8 @@ export default function FestivalHub() {
     </main>
   );
 }
+
+// --- SUB-COMPONENTS ---
 
 function SquadList({ festivalName }: { festivalName: string }) {
   const [attendees, setAttendees] = useState<Attendee[]>([]);
@@ -132,40 +201,41 @@ function SquadList({ festivalName }: { festivalName: string }) {
           <span className="font-bold">{person.user_name}</span>
         </div>
       ))}
-      {attendees.length === 0 && <p className="text-gray-600 italic">No one locked in yet...</p>}
+      {attendees.length === 0 && <p className="text-zinc-600 italic">No one locked in yet...</p>}
     </div>
   );
 }
 
-function FestivalCard({ fest, onOpen }: { fest: Festival, onOpen: () => void }) {
+function FestivalCard({ fest, onOpen, currentUser }: { fest: Festival, onOpen: () => void, currentUser: string }) {
   const [isGoing, setIsGoing] = useState(false);
   const [daysLeft, setDaysLeft] = useState(0);
-  const MY_NAME = "Kendrick";
+
+  const MY_NAME = currentUser;
   const MY_PFP = `https://api.dicebear.com/7.x/avataaars/svg?seed=${MY_NAME}`;
 
   useEffect(() => {
-    // 1. Calculate Countdown
     const calculateDays = () => {
       const diff = +new Date(fest.date) - +new Date();
       setDaysLeft(Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24))));
     };
 
     calculateDays();
-    const timer = setInterval(calculateDays, 1000 * 60 * 60); // Update every hour
+    const timer = setInterval(calculateDays, 1000 * 60 * 60);
 
-    // 2. Check Join Status
     const checkStatus = async () => {
+      if (!MY_NAME) return;
       const { data } = await supabase
         .from('squad')
         .select('*')
         .eq('festival_name', fest.name)
         .eq('user_name', MY_NAME);
-      if (data && data.length > 0) setIsGoing(true);
-    };
-    checkStatus();
 
+      setIsGoing(data && data.length > 0 ? true : false);
+    };
+
+    checkStatus();
     return () => clearInterval(timer);
-  }, [fest.name, fest.date]);
+  }, [fest.name, fest.date, MY_NAME]);
 
   const handleJoin = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -187,22 +257,18 @@ function FestivalCard({ fest, onOpen }: { fest: Festival, onOpen: () => void }) 
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
 
       <div className="absolute bottom-8 left-8">
-        {/* The New Countdown Label */}
         <div className="flex items-center gap-2 mb-1">
           <span className="text-[10px] font-black text-green-500 uppercase tracking-[0.2em] animate-pulse">
             {daysLeft} Days to go
           </span>
         </div>
-
         <h2 className="text-4xl font-black uppercase tracking-tighter leading-none">{fest.name}</h2>
         <p className="text-xs font-bold text-white/40 uppercase tracking-[0.3em] mt-1">{fest.location}</p>
       </div>
 
       <button
         onClick={handleJoin}
-        className={`absolute bottom-6 right-6 w-14 h-14 rounded-full flex items-center justify-center transition-all shadow-2xl border-2 ${isGoing
-            ? "bg-green-500 border-green-400 text-white"
-            : "bg-white border-white text-black hover:scale-110 active:scale-90"
+        className={`absolute bottom-6 right-6 w-14 h-14 rounded-full flex items-center justify-center transition-all shadow-2xl border-2 ${isGoing ? "bg-green-500 border-green-400 text-white" : "bg-white border-white text-black hover:scale-110 active:scale-90"
           }`}
       >
         {isGoing ? (
@@ -238,9 +304,7 @@ function DetailItem({ label, link }: { label: string; link: string | null }) {
         className="w-full p-4 flex justify-between items-center font-bold italic hover:bg-white/5 transition-colors"
       >
         <span>{label}</span>
-        <span className={`transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>
-          ▼
-        </span>
+        <span className={`transition-transform duration-300 text-[10px] ${isOpen ? 'rotate-180' : ''}`}>▼</span>
       </button>
 
       {isOpen && (
@@ -249,7 +313,7 @@ function DetailItem({ label, link }: { label: string; link: string | null }) {
             href={link}
             target="_blank"
             rel="noopener noreferrer"
-            className="block w-full p-3 bg-white/10 rounded-xl text-center text-sm font-black uppercase tracking-widest hover:bg-white text-black transition-colors"
+            className="block w-full p-4 bg-white text-black rounded-xl text-center text-xs font-black uppercase tracking-widest hover:bg-gray-200 transition-colors"
           >
             Open Official Link ↗
           </a>
