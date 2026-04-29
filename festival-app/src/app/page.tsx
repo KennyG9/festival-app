@@ -72,24 +72,74 @@ const getAvatarUrl = (type: string) => {
   return `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}`;
 };
 
-// --- MAIN COMPONENT ---
+// --- SWIPEABLE COMPONENT ---
+function SwipeableItem({ children, onDelete }: { children: React.ReactNode, onDelete: () => void }) {
+  const [startX, setStartX] = useState(0);
+  const [currentX, setCurrentX] = useState(0);
+
+  const onTouchStart = (e: React.TouchEvent | React.MouseEvent) => {
+    const x = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    setStartX(x);
+  };
+
+  const onTouchMove = (e: React.TouchEvent | React.MouseEvent) => {
+    const x = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const diff = x - startX;
+    if (diff < 0) setCurrentX(diff); // Only allow swiping left
+  };
+
+  const onTouchEnd = () => {
+    if (currentX < -60) {
+      setCurrentX(-80);
+    } else {
+      setCurrentX(0);
+    }
+  };
+
+  return (
+    <div className="relative overflow-hidden rounded-xl bg-red-600 group">
+      <button
+        onClick={onDelete}
+        className="absolute right-0 top-0 bottom-0 w-20 flex items-center justify-center text-[10px] font-black uppercase text-white"
+      >
+        Delete
+      </button>
+      <div
+        className="relative bg-zinc-900 border border-white/5 p-3 flex justify-between items-center transition-transform duration-200 ease-out"
+        style={{ transform: `translateX(${currentX}px)` }}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        onMouseDown={onTouchStart}
+        onMouseMove={(e) => startX !== 0 && onTouchMove(e)}
+        onMouseUp={() => { setStartX(0); onTouchEnd(); }}
+        onMouseLeave={() => { if (startX !== 0) { setStartX(0); onTouchEnd(); } }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// --- MAIN HUB ---
 export default function FestivalHub() {
   const [mounted, setMounted] = useState(false);
   const [selectedFest, setSelectedFest] = useState<Festival | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showMessages, setShowMessages] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
-
   const [userName, setUserName] = useState("Guest");
   const [avatarType, setAvatarType] = useState("boy");
 
   useEffect(() => {
-    setMounted(true);
-    setIsOnline(navigator.onLine);
-    const savedName = localStorage.getItem('squad-user-name');
-    const savedType = localStorage.getItem('squad-avatar-type');
-    if (savedName) setUserName(savedName);
-    if (savedType) setAvatarType(savedType);
+    requestAnimationFrame(() => {
+      setMounted(true);
+      setIsOnline(navigator.onLine);
+      const savedName = localStorage.getItem('squad-user-name');
+      const savedType = localStorage.getItem('squad-avatar-type');
+      if (savedName) setUserName(savedName);
+      if (savedType) setAvatarType(savedType);
+    });
 
     const updateStatus = () => setIsOnline(navigator.onLine);
     window.addEventListener('online', updateStatus);
@@ -124,7 +174,6 @@ export default function FestivalHub() {
               </p>
             </div>
           </div>
-
           <div className="flex items-center gap-2 self-end md:self-auto">
             <button onClick={() => setShowMessages(true)} className="h-11 md:h-12 px-4 rounded-2xl bg-white/5 border border-white/10 flex items-center gap-3 hover:bg-white/10 transition-all active:scale-95">
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
@@ -150,7 +199,7 @@ export default function FestivalHub() {
           <div className="bg-zinc-900 border border-white/10 w-full max-w-sm rounded-[3rem] p-10 space-y-8 shadow-2xl">
             <div className="text-center space-y-4">
               <img src={currentPfp} className="w-24 h-24 rounded-full border-4 border-white/10 mx-auto" alt="Avatar" />
-              <h2 className="text-2xl font-black uppercase italic tracking-tighter">Profile</h2>
+              <h2 className="text-2xl font-black uppercase italic tracking-tighter text-white">Profile</h2>
             </div>
             <div className="space-y-6">
               <input type="text" value={userName} onChange={(e) => saveSettings(e.target.value, avatarType)} className="w-full bg-white/5 border border-white/10 p-4 rounded-2xl font-bold text-white outline-none focus:border-white/30" />
@@ -168,7 +217,7 @@ export default function FestivalHub() {
         <div className="fixed inset-0 z-[50] bg-black flex flex-col md:flex-row overflow-y-auto animate-in slide-in-from-bottom duration-300">
           <div className="flex-1 p-8 md:p-16 space-y-8">
             <button onClick={() => setSelectedFest(null)} className="text-white/50 font-bold uppercase text-xs mb-8 hover:text-white transition-colors">← Close</button>
-            <h2 className="text-6xl font-black uppercase tracking-tighter leading-tight">{selectedFest.name}</h2>
+            <h2 className="text-6xl font-black uppercase tracking-tighter leading-tight text-white">{selectedFest.name}</h2>
             <div className="grid grid-cols-1 gap-4 pt-4">
               {selectedFest.details.map((detail, i) => {
                 const [label, link] = detail.includes('|') ? detail.split('|') : [detail, null];
@@ -192,7 +241,7 @@ function DetailItem({ label, link, isChecklist, festName }: { label: string; lin
   const [items, setItems] = useState<ChecklistItem[]>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem(`checklist-${festName}-${label}`);
-      if (saved) { try { return JSON.parse(saved); } catch (e) { console.error(e); return []; } }
+      if (saved) { try { return JSON.parse(saved); } catch { return []; } }
     }
     return [];
   });
@@ -212,30 +261,36 @@ function DetailItem({ label, link, isChecklist, festName }: { label: string; lin
     localStorage.setItem(`checklist-${festName}-${label}`, JSON.stringify(newList));
   };
 
+  const deleteItem = (id: string) => {
+    const newList = items.filter(it => it.id !== id);
+    setItems(newList);
+    localStorage.setItem(`checklist-${festName}-${label}`, JSON.stringify(newList));
+  };
+
   if (!link && !isChecklist) return <div className="p-5 bg-white/5 border border-white/10 rounded-2xl font-bold italic text-white/90">{label}</div>;
 
   return (
     <div className="border border-white/10 rounded-2xl overflow-hidden bg-white/5">
-      <button onClick={() => setIsOpen(!isOpen)} className="w-full p-5 flex justify-between items-center font-bold italic text-white uppercase text-xs tracking-widest">
+      <button onClick={() => setIsOpen(!isOpen)} className="w-full p-5 flex justify-between items-center font-bold italic text-white uppercase text-xs tracking-widest text-left">
         <span>{label}</span>
         <span className={`transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>▼</span>
       </button>
       {isOpen && (
-        <div className="p-5 pt-0 animate-in slide-in-from-top-2 duration-200 space-y-4">
+        <div className="p-5 pt-0 animate-in slide-in-from-top-2 duration-200 space-y-4 text-white">
           {isChecklist && (
             <div className="space-y-4">
               <div className="flex gap-2">
-                <input type="text" value={inputValue} onChange={(e) => setInputValue(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addItem()} placeholder="Pack what?" className="flex-1 bg-white/10 border border-white/5 p-3 rounded-xl outline-none text-sm font-bold text-white" />
+                <input type="text" value={inputValue} onChange={(e) => setInputValue(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addItem()} placeholder="Add gear..." className="flex-1 bg-white/10 border border-white/5 p-3 rounded-xl outline-none text-sm font-bold text-white" />
                 <button onClick={addItem} className="bg-white text-black px-5 rounded-xl font-black">+</button>
               </div>
               <div className="space-y-2">
                 {items.map(it => (
-                  <div key={it.id} className="flex justify-between items-center bg-white/5 p-3 rounded-xl border border-white/5">
+                  <SwipeableItem key={it.id} onDelete={() => deleteItem(it.id)}>
                     <span className={`text-sm font-bold ${it.done ? 'line-through text-white/30' : 'text-white'}`}>{it.text}</span>
-                    <button onClick={() => toggleItem(it.id)} className={`w-6 h-6 rounded-md border-2 ${it.done ? 'bg-green-500 border-green-500' : 'border-white/20'}`}>
+                    <button onClick={() => toggleItem(it.id)} className={`w-6 h-6 rounded-md border-2 transition-all ${it.done ? 'bg-green-500 border-green-500' : 'border-white/20'}`}>
                       {it.done && <span className="text-black text-[10px] font-black">✓</span>}
                     </button>
-                  </div>
+                  </SwipeableItem>
                 ))}
               </div>
             </div>
@@ -247,12 +302,12 @@ function DetailItem({ label, link, isChecklist, festName }: { label: string; lin
   );
 }
 
-// --- MESSAGE WALL COMPONENT ---
+// --- MESSAGE WALL ---
 function MessageWall({ isOpen, onClose, userName, userPfp }: { isOpen: boolean, onClose: () => void, userName: string, userPfp: string }) {
   const [messages, setMessages] = useState<Message[]>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem('squad-wall-cache');
-      if (saved) { try { return JSON.parse(saved); } catch (e) { return []; } }
+      if (saved) { try { return JSON.parse(saved); } catch { return []; } }
     }
     return [];
   });
@@ -289,7 +344,7 @@ function MessageWall({ isOpen, onClose, userName, userPfp }: { isOpen: boolean, 
           <h2 className="text-2xl font-black italic text-white uppercase tracking-tighter">Squad Wall</h2>
           <p className="text-[10px] font-bold uppercase tracking-widest text-green-500">Survival Mode Ready</p>
         </div>
-        <button onClick={onClose} className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-bold text-white active:scale-90 transition-all">✕</button>
+        <button onClick={onClose} className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-bold text-white active:scale-90">✕</button>
       </div>
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {messages.map((m) => (
