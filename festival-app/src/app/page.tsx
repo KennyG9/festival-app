@@ -55,7 +55,7 @@ const FESTIVALS: Festival[] = [
     location: "Orlando, Florida",
     date: "2026-11-06",
     image: "https://d3vhc53cl8e8km.cloudfront.net/hello-staging/wp-content/uploads/sites/44/2025/11/17172609/edco_2026_mk_ps_fs_seo_1200x630_r01.jpg",
-    description: "Under the Electric Sky. Three days of neon, carnival rides, and house/techno vibes.",
+    description: "Under the Electric Sky. Three days of house and techno.",
     details: ["Hotel: Home2Suites", "Shuttle: Purple Line", "Checklist|checklist"]
   },
   {
@@ -63,14 +63,16 @@ const FESTIVALS: Festival[] = [
     location: "Boca Raton, Florida",
     date: "2026-12-04",
     image: "https://d3vhc53cl8e8km.cloudfront.net/hello-staging/wp-content/2026/01/21190300/BjPk34sanaF62djjVmwlSzWUelCf6j0xXHFlrmNo-972x597.png",
-    description: "Subtronics brings the cyclops army back to the beach for a two-day takeover.",
+    description: "Subtronics brings the cyclops army back to the beach.",
     details: ["Location: Sunset Cove", "Entry: VIP", "Checklist|checklist"]
   }
 ];
 
+// --- NEW BASIC AVATARS ---
 const getAvatarUrl = (type: string) => {
-  const seed = type === 'boy' ? 'Felix' : 'Aneka';
-  return `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}`;
+  // Using pixel-art style for clear, basic male/female distinctions
+  const seed = type === 'boy' ? 'Kendrick' : 'Aneka';
+  return `https://api.dicebear.com/7.x/pixel-art/svg?seed=${seed}`;
 };
 
 // --- HELPER COMPONENT: SWIPE TO DELETE ---
@@ -79,12 +81,12 @@ function SwipeableItem({ children, onDelete }: { children: React.ReactNode, onDe
   const [currentX, setCurrentX] = useState(0);
 
   const onStart = (e: React.TouchEvent | React.MouseEvent) => {
-    setStartX('touches' in e ? e.touches[0].clientX : e.clientX);
+    setStartX('touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX);
   };
 
   const onMove = (e: React.TouchEvent | React.MouseEvent) => {
     if (startX === 0) return;
-    const x = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const x = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
     const diff = x - startX;
     if (diff < 0) setCurrentX(diff);
   };
@@ -102,7 +104,7 @@ function SwipeableItem({ children, onDelete }: { children: React.ReactNode, onDe
         className="relative bg-zinc-900 border border-white/5 p-3 flex justify-between items-center transition-transform duration-200 ease-out"
         style={{ transform: `translateX(${currentX}px)` }}
         onTouchStart={onStart} onTouchMove={onMove} onTouchEnd={onEnd}
-        onMouseDown={onStart} onMouseMove={onMove} onMouseUp={onEnd} onMouseLeave={onEnd}
+        onMouseDown={onStart} onMouseMove={(e) => onMove(e)} onMouseUp={onEnd} onMouseLeave={onEnd}
       >
         {children}
       </div>
@@ -180,6 +182,10 @@ export default function FestivalHub() {
         <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-xl flex items-center justify-center p-6">
           <div className="bg-zinc-900 border border-white/10 w-full max-w-sm rounded-[3rem] p-10 space-y-8 shadow-2xl">
             <h2 className="text-2xl font-black uppercase italic tracking-tighter text-center">Profile</h2>
+            <div className="grid grid-cols-2 gap-4">
+              <button onClick={() => saveSettings(userName, 'boy')} className={`p-4 rounded-2xl border-2 transition-all ${avatarType === 'boy' ? 'border-green-500 bg-green-500/10' : 'border-white/10 bg-white/5'}`}>Male</button>
+              <button onClick={() => saveSettings(userName, 'girl')} className={`p-4 rounded-2xl border-2 transition-all ${avatarType === 'girl' ? 'border-green-500 bg-green-500/10' : 'border-white/10 bg-white/5'}`}>Female</button>
+            </div>
             <input type="text" value={userName} onChange={(e) => saveSettings(e.target.value, avatarType)} className="w-full bg-white/5 border border-white/10 p-4 rounded-2xl font-bold text-white outline-none" />
             <button onClick={() => setShowSettings(false)} className="w-full py-4 bg-white text-black font-black uppercase rounded-2xl active:scale-95 transition-all">Done</button>
           </div>
@@ -254,9 +260,9 @@ function DetailItem({ label, link, isChecklist, festName, userName }: { label: s
 
   return (
     <div className="border border-white/10 rounded-2xl overflow-hidden bg-white/5">
-      <button onClick={() => setIsOpen(!isOpen)} className="w-full p-5 flex justify-between items-center font-bold italic text-white uppercase text-xs">
+      <button onClick={() => setIsOpen(!isOpen)} className="w-full p-5 flex justify-between items-center font-bold italic text-white uppercase text-xs tracking-widest text-left">
         <span>{label}</span>
-        <span>{isOpen ? '▲' : '▼'}</span>
+        <span className={`transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>▼</span>
       </button>
       {isOpen && (
         <div className="p-5 pt-0 space-y-4">
