@@ -73,7 +73,6 @@ export default function FestivalHub() {
   const [showMessages, setShowMessages] = useState(false);
   const [showSurvivalWall, setShowSurvivalWall] = useState(false);
 
-  // Lazy Initializer for User Profile
   const [userName, setUserName] = useState(() => {
     if (typeof window !== "undefined") return localStorage.getItem('squad-user-name') || "Guest";
     return "Guest";
@@ -96,31 +95,40 @@ export default function FestivalHub() {
   return (
     <main className="min-h-screen bg-black text-white font-sans">
       <div className="p-6">
-        <header className="mb-10 pt-6 flex justify-between items-center">
+        {/* RESPONSIVE HEADER */}
+        <header className="mb-10 pt-6 flex flex-col gap-6 md:flex-row md:justify-between md:items-center">
           <div>
-            <h1 className="text-4xl font-black italic tracking-tighter leading-none">SQUAD HUB</h1>
-            <p className="text-zinc-500 font-bold mt-1 uppercase text-[10px] tracking-widest">
+            <h1 className="text-3xl md:text-4xl font-black italic tracking-tighter leading-none text-white">SQUAD HUB</h1>
+            <p className="text-zinc-500 font-bold mt-1 uppercase text-[9px] md:text-[10px] tracking-widest">
               Live Sync • Welcome, {userName}
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 self-end md:self-auto">
+            {/* SURVIVAL WALL - Icon only on mobile */}
             <button
               onClick={() => setShowSurvivalWall(true)}
-              className="hidden md:flex h-12 px-4 rounded-2xl bg-orange-500/10 border border-orange-500/20 items-center gap-2 hover:bg-orange-500/20 transition-all active:scale-95"
+              className="h-11 md:h-12 px-3 md:px-4 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center gap-2 hover:bg-orange-500/20 transition-all active:scale-95"
             >
-              <span className="text-[10px] font-black uppercase tracking-widest text-orange-500">Survival Wall</span>
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+              </svg>
+              <span className="hidden md:block text-[10px] font-black uppercase tracking-widest text-orange-500">Survival Wall</span>
             </button>
 
+            {/* MESSAGES ICON */}
             <button
               onClick={() => setShowMessages(true)}
-              className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all active:scale-90"
+              className="w-11 h-11 md:w-12 md:h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all active:scale-90"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
               </svg>
             </button>
 
+            {/* SHARE BUTTON */}
             <button
               onClick={async () => {
                 const shareData = { title: 'SQUAD HUB', url: window.location.href };
@@ -130,22 +138,23 @@ export default function FestivalHub() {
                     await navigator.clipboard.writeText(window.location.href);
                     alert('Link Copied!');
                   }
-                } catch (err) { console.error(err); }
+                } catch (err) { console.error('Share failed:', err); }
               }}
-              className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all active:scale-90"
+              className="w-11 h-11 md:w-12 md:h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all active:scale-90"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
                 <polyline points="16 6 12 2 8 6"></polyline>
                 <line x1="12" y1="2" x2="12" y2="15"></line>
               </svg>
             </button>
 
+            {/* PROFILE */}
             <button
               onClick={() => setShowSettings(true)}
-              className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden active:scale-90"
+              className="w-11 h-11 md:w-12 md:h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden active:scale-90"
             >
-              <img src={currentPfp} className="w-9 h-9" alt="Profile" />
+              <img src={currentPfp} className="w-8 h-8 md:w-9 md:h-9" alt="Profile" />
             </button>
           </div>
         </header>
@@ -233,7 +242,7 @@ export default function FestivalHub() {
             </div>
           </div>
           <div className="w-full md:w-96 bg-zinc-950 border-l border-white/10 p-8">
-            <h3 className="text-xl font-black uppercase mb-8">The Squad</h3>
+            <h3 className="text-xl font-black uppercase mb-8 text-white">The Squad</h3>
             <SquadList festivalName={selectedFest.name} />
           </div>
         </div>
@@ -264,7 +273,7 @@ function SquadList({ festivalName }: { festivalName: string }) {
       {attendees.map((person, i) => (
         <div key={i} className="flex items-center gap-4 bg-white/5 p-3 rounded-2xl border border-white/5">
           <img src={person.user_pfp} className="w-12 h-12 rounded-full border-2 border-black" alt="" />
-          <span className="font-bold">{person.user_name}</span>
+          <span className="font-bold text-white">{person.user_name}</span>
         </div>
       ))}
       {attendees.length === 0 && <p className="text-zinc-600 italic">No one locked in yet...</p>}
@@ -275,7 +284,6 @@ function SquadList({ festivalName }: { festivalName: string }) {
 function FestivalCard({ fest, onOpen, currentUser, currentPfp }: { fest: Festival, onOpen: () => void, currentUser: string, currentPfp: string }) {
   const [isGoing, setIsGoing] = useState(false);
 
-  // FIX: Calculate daysLeft directly in the body, not in useEffect
   const diff = +new Date(fest.date) - +new Date();
   const daysLeft = Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
 
@@ -290,7 +298,7 @@ function FestivalCard({ fest, onOpen, currentUser, currentPfp }: { fest: Festiva
       setIsGoing(data && data.length > 0 ? true : false);
     };
     checkStatus();
-  }, [fest.name, fest.date, currentUser]);
+  }, [fest.name, currentUser]);
 
   const handleJoin = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -305,7 +313,7 @@ function FestivalCard({ fest, onOpen, currentUser, currentPfp }: { fest: Festiva
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
       <div className="absolute bottom-8 left-8">
         <span className="text-[10px] font-black text-green-500 uppercase tracking-[0.2em] animate-pulse">{daysLeft} Days to go</span>
-        <h2 className="text-4xl font-black uppercase tracking-tighter leading-none">{fest.name}</h2>
+        <h2 className="text-4xl font-black uppercase tracking-tighter leading-none text-white">{fest.name}</h2>
         <p className="text-xs font-bold text-white/40 uppercase tracking-[0.3em] mt-1">{fest.location}</p>
       </div>
       <button onClick={handleJoin} className={`absolute bottom-6 right-6 w-14 h-14 rounded-full flex items-center justify-center border-2 transition-all shadow-2xl ${isGoing ? "bg-green-500 border-green-400 text-white" : "bg-white border-white text-black active:scale-90"}`}>
@@ -320,7 +328,7 @@ function DetailItem({ label, link }: { label: string; link: string | null }) {
   if (!link) return <div className="p-4 bg-white/5 border border-white/10 rounded-2xl font-bold italic text-white/90">{label}</div>;
   return (
     <div className="border border-white/10 rounded-2xl overflow-hidden bg-white/5 transition-all">
-      <button onClick={() => setIsOpen(!isOpen)} className="w-full p-4 flex justify-between items-center font-bold italic">
+      <button onClick={() => setIsOpen(!isOpen)} className="w-full p-4 flex justify-between items-center font-bold italic text-white">
         <span>{label}</span>
         <span className={`transition-transform duration-300 text-[10px] ${isOpen ? 'rotate-180' : ''}`}>▼</span>
       </button>
@@ -334,30 +342,20 @@ function DetailItem({ label, link }: { label: string; link: string | null }) {
 }
 
 function MessageWall({ isOpen, onClose, userName, userPfp }: { isOpen: boolean, onClose: () => void, userName: string, userPfp: string }) {
-  // FIX: Change any[] to Message[]
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
 
   useEffect(() => {
     if (!isOpen) return;
     const fetchMessages = async () => {
-      const { data } = await supabase
-        .from('messages')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(20);
-
-      // FIX: Tell TS this is Message data
+      const { data } = await supabase.from('messages').select('*').order('created_at', { ascending: false }).limit(20);
       if (data) setMessages(data as Message[]);
     };
-
     fetchMessages();
-
     const channel = supabase.channel('live-wall')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' },
         (payload) => setMessages(prev => [payload.new as Message, ...prev]))
       .subscribe();
-
     return () => { supabase.removeChannel(channel); };
   }, [isOpen]);
 
