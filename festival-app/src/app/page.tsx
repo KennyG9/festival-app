@@ -1,6 +1,6 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
 // --- SUPABASE SETUP ---
@@ -73,7 +73,6 @@ export default function FestivalHub() {
   const [showMessages, setShowMessages] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
 
-  // Lazy Init State to prevent ESLint "Double Render" errors
   const [userName, setUserName] = useState(() => {
     if (typeof window !== "undefined") return localStorage.getItem('squad-user-name') || "Guest";
     return "Guest";
@@ -84,7 +83,6 @@ export default function FestivalHub() {
     return "boy";
   });
 
-  // Track Online Status
   useEffect(() => {
     const update = () => setIsOnline(navigator.onLine);
     window.addEventListener('online', update);
@@ -105,8 +103,8 @@ export default function FestivalHub() {
   const currentPfp = getAvatarUrl(avatarType);
 
   return (
-    <main className="min-h-screen bg-black text-white font-sans">
-      <div className="p-6">
+    <main className="min-h-screen bg-black text-white font-sans selection:bg-white selection:text-black">
+      <div className="p-6 max-w-7xl mx-auto">
         <header className="mb-10 pt-6 flex flex-col gap-6 md:flex-row md:justify-between md:items-center">
           <div>
             <h1 className="text-3xl md:text-4xl font-black italic tracking-tighter leading-none text-white">SQUAD HUB</h1>
@@ -119,10 +117,9 @@ export default function FestivalHub() {
           </div>
 
           <div className="flex items-center gap-2 self-end md:self-auto">
-            {/* MESSAGES ICON (This now triggers the Wall we built) */}
             <button
               onClick={() => setShowMessages(true)}
-              className="h-11 md:h-12 px-4 rounded-2xl bg-white/5 border border-white/10 flex items-center gap-3 hover:bg-white/10 transition-all active:scale-90"
+              className="h-11 md:h-12 px-4 rounded-2xl bg-white/5 border border-white/10 flex items-center gap-3 hover:bg-white/10 transition-all active:scale-95"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
@@ -130,10 +127,9 @@ export default function FestivalHub() {
               <span className="text-[10px] font-black uppercase tracking-widest">Messages</span>
             </button>
 
-            {/* PROFILE */}
             <button
               onClick={() => setShowSettings(true)}
-              className="w-11 h-11 md:w-12 md:h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden active:scale-90"
+              className="w-11 h-11 md:w-12 md:h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden active:scale-95"
             >
               <img src={currentPfp} className="w-8 h-8 md:w-9 md:h-9" alt="Profile" />
             </button>
@@ -153,6 +149,7 @@ export default function FestivalHub() {
         </div>
       </div>
 
+      {/* THE SURVIVAL WALL (MODAL) */}
       <MessageWall
         isOpen={showMessages}
         onClose={() => setShowMessages(false)}
@@ -160,9 +157,10 @@ export default function FestivalHub() {
         userPfp={currentPfp}
       />
 
+      {/* SETTINGS MODAL */}
       {showSettings && (
-        <div className="fixed inset-0 z-[60] bg-black/90 backdrop-blur-md flex items-center justify-center p-6">
-          <div className="bg-zinc-900 border border-white/10 w-full max-w-sm rounded-[3rem] p-10 space-y-8">
+        <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-xl flex items-center justify-center p-6 animate-in fade-in duration-200">
+          <div className="bg-zinc-900 border border-white/10 w-full max-w-sm rounded-[3rem] p-10 space-y-8 shadow-2xl">
             <div className="text-center space-y-4">
               <img src={currentPfp} className="w-24 h-24 rounded-full border-4 border-white/10 mx-auto" alt="Avatar" />
               <h2 className="text-2xl font-black uppercase italic tracking-tighter">Profile</h2>
@@ -172,37 +170,41 @@ export default function FestivalHub() {
                 type="text"
                 value={userName}
                 onChange={(e) => saveSettings(e.target.value, avatarType)}
-                placeholder="User Name"
-                className="w-full bg-white/5 border border-white/10 p-4 rounded-2xl font-bold text-white outline-none"
+                className="w-full bg-white/5 border border-white/10 p-4 rounded-2xl font-bold text-white outline-none focus:border-white/30"
               />
               <div className="grid grid-cols-2 gap-4">
-                <button onClick={() => saveSettings(userName, 'boy')} className={`p-4 rounded-2xl border-2 ${avatarType === 'boy' ? 'border-green-500 bg-green-500/10' : 'border-white/10'}`}>
+                <button onClick={() => saveSettings(userName, 'boy')} className={`p-4 rounded-2xl border-2 transition-all ${avatarType === 'boy' ? 'border-green-500 bg-green-500/10' : 'border-white/10 bg-white/5 opacity-50'}`}>
                   Boy
                 </button>
-                <button onClick={() => saveSettings(userName, 'girl')} className={`p-4 rounded-2xl border-2 ${avatarType === 'girl' ? 'border-green-500 bg-green-500/10' : 'border-white/10'}`}>
+                <button onClick={() => saveSettings(userName, 'girl')} className={`p-4 rounded-2xl border-2 transition-all ${avatarType === 'girl' ? 'border-green-500 bg-green-500/10' : 'border-white/10 bg-white/5 opacity-50'}`}>
                   Girl
                 </button>
               </div>
             </div>
-            <button onClick={() => setShowSettings(false)} className="w-full py-4 bg-white text-black font-black uppercase rounded-2xl">Save</button>
+            <button onClick={() => setShowSettings(false)} className="w-full py-4 bg-white text-black font-black uppercase rounded-2xl shadow-xl active:scale-95 transition-all">Done</button>
           </div>
         </div>
       )}
 
+      {/* FESTIVAL DETAIL OVERLAY */}
       {selectedFest && (
-        <div className="fixed inset-0 z-50 bg-black flex flex-col md:flex-row overflow-y-auto animate-in slide-in-from-bottom duration-300">
+        <div className="fixed inset-0 z-[50] bg-black flex flex-col md:flex-row overflow-y-auto animate-in slide-in-from-bottom duration-300">
           <div className="flex-1 p-8 md:p-16 space-y-8">
-            <button onClick={() => setSelectedFest(null)} className="text-white/50 font-bold uppercase text-xs mb-8">← Close</button>
+            <button onClick={() => setSelectedFest(null)} className="text-white/50 font-bold uppercase text-xs mb-8 hover:text-white transition-colors">← Close</button>
             <h2 className="text-6xl font-black uppercase tracking-tighter leading-tight">{selectedFest.name}</h2>
-            <div className="grid grid-cols-1 gap-4">
+            <p className="text-white/60 text-lg max-w-xl italic">{selectedFest.description}</p>
+            <div className="grid grid-cols-1 gap-4 pt-4">
               {selectedFest.details.map((detail, i) => {
                 const [label, link] = detail.includes('|') ? detail.split('|') : [detail, null];
                 return <DetailItem key={i} label={label} link={link} />;
               })}
             </div>
           </div>
-          <div className="w-full md:w-96 bg-zinc-950 border-l border-white/10 p-8">
-            <h3 className="text-xl font-black uppercase mb-8">The Squad</h3>
+          <div className="w-full md:w-96 bg-zinc-950 border-l border-white/10 p-8 shadow-2xl">
+            <h3 className="text-xl font-black uppercase mb-8 flex items-center gap-2">
+              <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+              The Squad
+            </h3>
             <SquadList festivalName={selectedFest.name} />
           </div>
         </div>
@@ -213,15 +215,23 @@ export default function FestivalHub() {
 
 // --- MESSAGE WALL COMPONENT ---
 function MessageWall({ isOpen, onClose, userName, userPfp }: { isOpen: boolean, onClose: () => void, userName: string, userPfp: string }) {
-  const [messages, setMessages] = useState<Message[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem('squad-wall-cache');
-      return saved ? JSON.parse(saved) : [];
-    }
-    return [];
-  });
+  const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [isOnline, setIsOnline] = useState(true);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Load from cache instantly
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem('squad-wall-cache');
+      try {
+        return saved ? JSON.parse(saved) : [];
+      } catch (e) {
+        console.error("Cache corrupted:", e);
+        return [];
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const update = () => setIsOnline(navigator.onLine);
@@ -234,87 +244,109 @@ function MessageWall({ isOpen, onClose, userName, userPfp }: { isOpen: boolean, 
   }, []);
 
   useEffect(() => {
-    if (!isOpen || !navigator.onLine) return;
-    const fetch = async () => {
-      const { data } = await supabase.from('messages').select('*').order('created_at', { ascending: false }).limit(20);
+    if (!isOpen) return;
+
+    const fetchMessages = async () => {
+      if (!navigator.onLine) return;
+      const { data } = await supabase.from('messages').select('*').order('created_at', { ascending: false }).limit(25);
       if (data) {
         setMessages(data as Message[]);
         localStorage.setItem('squad-wall-cache', JSON.stringify(data));
       }
     };
-    fetch();
+    fetchMessages();
+
     const channel = supabase.channel('live-wall')
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages' },
-        (payload: { new: Message }) => { // <--- Defined the specific type here
+        (payload: { new: Message }) => {
           setMessages(prev => {
             const updated = [payload.new, ...prev];
-            localStorage.setItem('squad-wall-cache', JSON.stringify(updated.slice(0, 20)));
+            localStorage.setItem('squad-wall-cache', JSON.stringify(updated.slice(0, 25)));
             return updated;
           });
         }
       )
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [isOpen]);
 
   const sendMessage = async () => {
     if (!newMessage.trim()) return;
-    const msg = { id: Math.random().toString(36).substr(2, 9), created_at: new Date().toISOString(), user_name: userName, user_pfp: userPfp, content: newMessage, type: 'status' };
+    const msg: Message = {
+      id: Math.random().toString(36).substr(2, 9),
+      created_at: new Date().toISOString(),
+      user_name: userName,
+      user_pfp: userPfp,
+      content: newMessage,
+      type: 'status'
+    };
+
     setMessages(prev => [msg, ...prev]);
     setNewMessage("");
+
     if (!navigator.onLine) {
       const outbox = JSON.parse(localStorage.getItem('squad-outbox') || '[]');
       localStorage.setItem('squad-outbox', JSON.stringify([...outbox, msg]));
       return;
     }
-    await supabase.from('messages').insert([{ user_name: userName, user_pfp: userPfp, content: msg.content, type: 'status' }]);
+
+    await supabase.from('messages').insert([{
+      user_name: userName,
+      user_pfp: userPfp,
+      content: msg.content,
+      type: 'status'
+    }]);
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[70] bg-black flex flex-col animate-in slide-in-from-right duration-300">
-      <div className="p-6 border-b border-white/10 flex justify-between items-center bg-zinc-950">
+    <div className="fixed inset-0 z-[999] bg-black flex flex-col animate-in slide-in-from-right duration-300">
+      <div className="p-6 border-b border-white/10 flex justify-between items-center bg-zinc-950/50 backdrop-blur-md sticky top-0">
         <div>
-          <h2 className="text-2xl font-black italic text-white">SQUAD MESSAGES</h2>
+          <h2 className="text-2xl font-black italic text-white tracking-tighter">SQUAD WALL</h2>
           <p className={`text-[10px] font-bold uppercase tracking-widest ${isOnline ? 'text-green-500' : 'text-orange-500'}`}>
-            {isOnline ? 'Live Signal' : 'Survival Mode (Offline)'}
+            {isOnline ? 'Live Connection' : 'Survival Mode Enabled'}
           </p>
         </div>
-        <button onClick={onClose} className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center font-bold text-white">✕</button>
+        <button onClick={onClose} className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-bold text-white hover:bg-white/10 active:scale-90 transition-all">✕</button>
       </div>
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6">
         {messages.map((msg) => (
-          <div key={msg.id} className="flex gap-4">
-            <img src={msg.user_pfp} className="w-10 h-10 rounded-full border border-white/10" alt="" />
+          <div key={msg.id} className="flex gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <img src={msg.user_pfp} className="w-10 h-10 rounded-full border border-white/10 bg-zinc-800" alt="" />
             <div className="flex-1">
               <div className="flex gap-2 items-center mb-1">
-                <span className="font-black text-[10px] text-white">{msg.user_name}</span>
-                <span className="text-[8px] text-zinc-500">{new Date(msg.created_at).toLocaleTimeString()}</span>
+                <span className="font-black text-[10px] text-white uppercase">{msg.user_name}</span>
+                <span className="text-[8px] text-zinc-500 font-bold">{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
               </div>
-              <div className="p-4 bg-zinc-900 border border-white/5 rounded-2xl rounded-tl-none text-sm text-zinc-200">
+              <div className="p-4 bg-zinc-900/50 border border-white/5 rounded-2xl rounded-tl-none text-sm text-zinc-200 leading-relaxed">
                 {msg.content}
               </div>
             </div>
           </div>
         ))}
       </div>
+
       <div className="p-6 bg-zinc-950 border-t border-white/10 pb-10">
-        <div className="flex gap-3 bg-white/5 p-2 rounded-[2rem] border border-white/10">
+        <div className="flex gap-3 bg-white/5 p-2 rounded-[2rem] border border-white/10 shadow-2xl focus-within:border-white/30 transition-all">
           <input
-            type="text" value={newMessage}
+            type="text"
+            value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-            placeholder={isOnline ? "Message squad..." : "Offline: Queue message..."}
-            className="flex-1 bg-transparent px-4 py-2 outline-none font-bold text-sm text-white"
+            placeholder={isOnline ? "Post to the wall..." : "Syncing when online..."}
+            className="flex-1 bg-transparent px-4 py-2 outline-none font-bold text-sm text-white placeholder:text-zinc-600"
           />
-          <button onClick={sendMessage} className="bg-white text-black px-6 py-2 rounded-full font-black uppercase text-[10px]">
-            {isOnline ? 'Send' : 'Queue'}
+          <button
+            onClick={sendMessage}
+            className="bg-white text-black px-8 py-2 rounded-full font-black uppercase text-[10px] hover:bg-zinc-200 active:scale-95 transition-all shadow-lg"
+          >
+            {isOnline ? 'Post' : 'Queue'}
           </button>
         </div>
       </div>
@@ -322,32 +354,49 @@ function MessageWall({ isOpen, onClose, userName, userPfp }: { isOpen: boolean, 
   );
 }
 
-// --- SQUAD & CARD SUB-COMPONENTS (Original logic maintained with TS fixes) ---
+// --- SQUAD & CARD SUB-COMPONENTS ---
 function SquadList({ festivalName }: { festivalName: string }) {
   const [attendees, setAttendees] = useState<Attendee[]>([]);
   useEffect(() => {
     const fetch = async () => {
       const { data } = await supabase.from('squad').select('*').eq('festival_name', festivalName);
-      if (data) setAttendees(data);
+      if (data) setAttendees(data as Attendee[]);
     };
     fetch();
+
+    const channel = supabase.channel(`squad-${festivalName}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'squad', filter: `festival_name=eq.${festivalName}` },
+        (payload: { new: Attendee }) => setAttendees(prev => [...prev, payload.new]))
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, [festivalName]);
 
   return (
     <div className="space-y-4">
       {attendees.map((person, i) => (
-        <div key={i} className="flex items-center gap-4 bg-white/5 p-3 rounded-2xl border border-white/5">
-          <img src={person.user_pfp} className="w-12 h-12 rounded-full border-2 border-black" alt="" />
-          <span className="font-bold text-white">{person.user_name}</span>
+        <div key={i} className="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/5 animate-in fade-in duration-500">
+          <img src={person.user_pfp} className="w-10 h-10 rounded-full border border-black shadow-lg" alt="" />
+          <span className="font-bold text-sm text-zinc-300">{person.user_name}</span>
         </div>
       ))}
+      {attendees.length === 0 && <p className="text-zinc-700 italic text-sm text-center py-10">Waiting for the squad to join...</p>}
     </div>
   );
 }
 
 function FestivalCard({ fest, onOpen, currentUser, currentPfp }: { fest: Festival, onOpen: () => void, currentUser: string, currentPfp: string }) {
   const [isGoing, setIsGoing] = useState(false);
-  const daysLeft = Math.max(0, Math.ceil((+new Date(fest.date) - +new Date()) / (1000 * 60 * 60 * 24)));
+  const diff = +new Date(fest.date) - +new Date();
+  const daysLeft = Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+
+  useEffect(() => {
+    const checkStatus = async () => {
+      if (!currentUser) return;
+      const { data } = await supabase.from('squad').select('*').eq('festival_name', fest.name).eq('user_name', currentUser);
+      setIsGoing(data && data.length > 0 ? true : false);
+    };
+    checkStatus();
+  }, [fest.name, currentUser]);
 
   const handleJoin = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -357,15 +406,15 @@ function FestivalCard({ fest, onOpen, currentUser, currentPfp }: { fest: Festiva
   };
 
   return (
-    <div onClick={onOpen} className="relative h-[300px] w-full rounded-[2.5rem] overflow-hidden bg-zinc-900 border border-white/10 group cursor-pointer active:scale-[0.98]">
-      <img src={fest.image} className="absolute inset-0 w-full h-full object-contain p-12 opacity-50 group-hover:opacity-70 transition-opacity" alt="" />
-      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+    <div onClick={onOpen} className="relative h-[320px] w-full rounded-[2.5rem] overflow-hidden bg-zinc-900 border border-white/10 group cursor-pointer transition-all hover:border-white/30 active:scale-[0.98]">
+      <img src={fest.image} className="absolute inset-0 w-full h-full object-contain p-12 opacity-30 group-hover:opacity-60 transition-all duration-500 group-hover:scale-110" alt="" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
       <div className="absolute bottom-8 left-8">
-        <span className="text-[10px] font-black text-green-500 uppercase tracking-widest animate-pulse">{daysLeft} Days to go</span>
+        <span className="text-[10px] font-black text-green-500 uppercase tracking-[0.2em] animate-pulse">{daysLeft} Days</span>
         <h2 className="text-4xl font-black uppercase tracking-tighter leading-none text-white">{fest.name}</h2>
         <p className="text-xs font-bold text-white/40 uppercase tracking-[0.3em] mt-1">{fest.location}</p>
       </div>
-      <button onClick={handleJoin} className={`absolute bottom-6 right-6 w-14 h-14 rounded-full flex items-center justify-center border-2 transition-all ${isGoing ? "bg-green-500 border-green-400" : "bg-white border-white text-black"}`}>
+      <button onClick={handleJoin} className={`absolute bottom-6 right-6 w-14 h-14 rounded-full flex items-center justify-center border-2 transition-all shadow-2xl ${isGoing ? "bg-green-500 border-green-400 text-white" : "bg-white border-white text-black hover:scale-110"}`}>
         {isGoing ? "✓" : "+"}
       </button>
     </div>
@@ -374,16 +423,16 @@ function FestivalCard({ fest, onOpen, currentUser, currentPfp }: { fest: Festiva
 
 function DetailItem({ label, link }: { label: string; link: string | null }) {
   const [isOpen, setIsOpen] = useState(false);
-  if (!link) return <div className="p-4 bg-white/5 border border-white/10 rounded-2xl font-bold italic text-white/90">{label}</div>;
+  if (!link) return <div className="p-5 bg-white/5 border border-white/10 rounded-2xl font-bold italic text-white/90">{label}</div>;
   return (
-    <div className="border border-white/10 rounded-2xl overflow-hidden bg-white/5">
-      <button onClick={() => setIsOpen(!isOpen)} className="w-full p-4 flex justify-between items-center font-bold italic text-white">
+    <div className="border border-white/10 rounded-2xl overflow-hidden bg-white/5 transition-all hover:bg-white/10">
+      <button onClick={() => setIsOpen(!isOpen)} className="w-full p-5 flex justify-between items-center font-bold italic text-white">
         <span>{label}</span>
-        <span className={`transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>▼</span>
+        <span className={`transition-transform duration-300 text-[10px] ${isOpen ? 'rotate-180' : ''}`}>▼</span>
       </button>
       {isOpen && (
-        <div className="p-4 pt-0">
-          <a href={link} target="_blank" rel="noopener noreferrer" className="block w-full p-4 bg-white text-black rounded-xl text-center text-xs font-black uppercase">Open Link ↗</a>
+        <div className="p-5 pt-0 animate-in slide-in-from-top-2 duration-200">
+          <a href={link} target="_blank" rel="noopener noreferrer" className="block w-full p-4 bg-white text-black rounded-xl text-center text-xs font-black uppercase shadow-lg hover:bg-zinc-200 transition-colors">Open ↗</a>
         </div>
       )}
     </div>
