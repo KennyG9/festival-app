@@ -78,50 +78,60 @@ export default function FestivalHub() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [selectedFest, setSelectedFest] = useState<Festival | null>(null);
   const [showMessages, setShowMessages] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [regName, setRegName] = useState("");
   const [isOnline, setIsOnline] = useState(true);
 
   useEffect(() => {
-    // FIX: Using requestAnimationFrame to decouple state update from render
-    const init = () => {
-      requestAnimationFrame(() => {
-        setMounted(true);
-        setIsOnline(typeof navigator !== 'undefined' ? navigator.onLine : true);
-        const saved = localStorage.getItem('squad-profile');
-        if (saved) setUser(JSON.parse(saved));
-      });
-    };
-
-    init();
-
+    requestAnimationFrame(() => {
+      setMounted(true);
+      setIsOnline(typeof navigator !== 'undefined' ? navigator.onLine : true);
+      const saved = localStorage.getItem('squad-profile');
+      if (saved) setUser(JSON.parse(saved));
+    });
     const update = () => setIsOnline(navigator.onLine);
     window.addEventListener('online', update);
     window.addEventListener('offline', update);
     return () => { window.removeEventListener('online', update); window.removeEventListener('offline', update); };
   }, []);
 
-  const handleAccountSetup = (name: string, avatarType: 'boy' | 'girl') => {
-    const newProfile: UserProfile = { name: name.trim() || "Raver", avatarType };
+  const handleRegister = (avatarType: 'boy' | 'girl') => {
+    if (!regName.trim()) return;
+    const newProfile: UserProfile = { name: regName.trim(), avatarType };
     setUser(newProfile);
     localStorage.setItem('squad-profile', JSON.stringify(newProfile));
   };
 
+  const deleteAccount = () => {
+    localStorage.removeItem('squad-profile');
+    window.location.reload();
+  };
+
   if (!mounted) return <div className="min-h-screen bg-black" />;
 
+  // REGISTRATION SCREEN
   if (!user) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center p-6 text-white">
+      <div className="min-h-screen bg-black flex items-center justify-center p-6 text-white font-sans">
         <div className="w-full max-w-md bg-zinc-900 border border-white/10 rounded-[3rem] p-10 space-y-8 shadow-2xl">
-          <div className="text-center">
-            <h1 className="text-4xl font-black italic tracking-tighter">SQUAD HUB</h1>
-            <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mt-2">Registration Required</p>
+          <h1 className="text-4xl font-black italic tracking-tighter text-center">SQUAD HUB</h1>
+          <div className="space-y-4">
+            <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest ml-2">Display Name</p>
+            <input
+              type="text"
+              value={regName}
+              onChange={(e) => setRegName(e.target.value)}
+              placeholder="Enter name..."
+              className="w-full bg-white/5 border border-white/10 p-4 rounded-2xl font-bold text-white outline-none focus:border-white/30 transition-all"
+            />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <button onClick={() => handleAccountSetup("Technician", 'boy')} className="p-6 rounded-2xl border-2 border-white/10 bg-white/5 hover:border-green-500 transition-all flex flex-col items-center gap-3 group">
-              <img src={getAvatarUrl('boy', 'tech')} className="w-12 h-12 group-hover:scale-110 transition-transform" alt="" />
+          <div className={`grid grid-cols-2 gap-4 transition-opacity duration-300 ${!regName.trim() ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
+            <button onClick={() => handleRegister('boy')} className="p-6 rounded-2xl border-2 border-white/10 bg-white/5 hover:border-green-500 transition-all flex flex-col items-center gap-3">
+              <img src={getAvatarUrl('boy', 'male')} className="w-12 h-12" alt="" />
               <span className="text-[10px] font-black uppercase">Male</span>
             </button>
-            <button onClick={() => handleAccountSetup("Technician", 'girl')} className="p-6 rounded-2xl border-2 border-white/10 bg-white/5 hover:border-green-500 transition-all flex flex-col items-center gap-3 group">
-              <img src={getAvatarUrl('girl', 'tech')} className="w-12 h-12 group-hover:scale-110 transition-transform" alt="" />
+            <button onClick={() => handleRegister('girl')} className="p-6 rounded-2xl border-2 border-white/10 bg-white/5 hover:border-green-500 transition-all flex flex-col items-center gap-3">
+              <img src={getAvatarUrl('girl', 'female')} className="w-12 h-12" alt="" />
               <span className="text-[10px] font-black uppercase">Female</span>
             </button>
           </div>
@@ -142,8 +152,8 @@ export default function FestivalHub() {
             </div>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => setShowMessages(true)} className="h-12 px-4 rounded-2xl bg-white/5 border border-white/10 active:scale-95 transition-all text-[10px] font-black uppercase">Wall</button>
-            <button onClick={() => { localStorage.removeItem('squad-profile'); window.location.reload(); }} className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden">
+            <button onClick={() => setShowMessages(true)} className="h-12 px-4 rounded-2xl bg-white/5 border border-white/10 active:scale-95 transition-all text-[10px] font-black uppercase">Messages</button>
+            <button onClick={() => setShowProfile(true)} className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden active:scale-95 transition-all">
               <img src={getAvatarUrl(user.avatarType, user.name)} className="w-8 h-8" alt="" />
             </button>
           </div>
@@ -157,6 +167,23 @@ export default function FestivalHub() {
       </div>
 
       <MessageWall isOpen={showMessages} onClose={() => setShowMessages(false)} user={user} />
+
+      {/* PROFILE MODAL */}
+      {showProfile && (
+        <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-xl flex items-center justify-center p-6 animate-in fade-in duration-200">
+          <div className="bg-zinc-900 border border-white/10 w-full max-w-sm rounded-[3rem] p-10 space-y-8 shadow-2xl">
+            <div className="text-center space-y-4">
+              <img src={getAvatarUrl(user.avatarType, user.name)} className="w-20 h-20 mx-auto rounded-full border-2 border-white/10" alt="" />
+              <h2 className="text-2xl font-black uppercase italic tracking-tighter">{user.name}</h2>
+              <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{user.avatarType === 'boy' ? 'Male Profile' : 'Female Profile'}</p>
+            </div>
+            <div className="space-y-3">
+              <button onClick={() => setShowProfile(false)} className="w-full py-4 bg-white text-black font-black uppercase rounded-2xl active:scale-95 transition-all">Done</button>
+              <button onClick={deleteAccount} className="w-full py-4 bg-red-600/10 border border-red-600/20 text-red-500 font-black uppercase rounded-2xl active:scale-95 transition-all text-[10px]">Delete Account</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {selectedFest && (
         <div className="fixed inset-0 z-[50] bg-black flex flex-col md:flex-row overflow-y-auto animate-in slide-in-from-bottom duration-300">
@@ -193,15 +220,9 @@ function DetailItem({ label, link, isChecklist, festName, user }: { label: strin
 
   useEffect(() => {
     if (!isChecklist || !isOpen) return;
-
-    // Async block satisfies the linter by moving state update out of synchronous flow
     const load = async () => { await fetchData(); };
     load();
-
-    const ch = supabase.channel(`ck-${festName}`).on('postgres_changes', { event: '*', schema: 'public', table: 'checklist', filter: `fest_name=eq.${festName}` }, () => {
-      fetchData();
-    }).subscribe();
-
+    const ch = supabase.channel(`ck-${festName}`).on('postgres_changes', { event: '*', schema: 'public', table: 'checklist', filter: `fest_name=eq.${festName}` }, () => fetchData()).subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [isChecklist, isOpen, festName, fetchData]);
 
@@ -231,7 +252,7 @@ function DetailItem({ label, link, isChecklist, festName, user }: { label: strin
                 {items.map(it => (
                   <div key={it.id} className="flex justify-between items-center bg-zinc-900 p-3 rounded-xl border border-white/5">
                     <span className={`text-sm font-bold ${it.is_done ? 'line-through text-white/20' : 'text-white'}`}>{it.item_text}</span>
-                    <button onClick={async () => await supabase.from('checklist').update({ is_done: !it.is_done }).eq('id', it.id)} className={`w-6 h-6 rounded-md border-2 transition-colors ${it.is_done ? 'bg-green-500 border-green-500' : 'border-white/20'}`}>{it.is_done && "✓"}</button>
+                    <button onClick={async () => await supabase.from('checklist').update({ is_done: !it.is_done }).eq('id', it.id)} className={`w-6 h-6 rounded-md border-2 ${it.is_done ? 'bg-green-500 border-green-400' : 'border-white/20'}`}>{it.is_done && "✓"}</button>
                   </div>
                 ))}
               </div>
@@ -244,7 +265,7 @@ function DetailItem({ label, link, isChecklist, festName, user }: { label: strin
   );
 }
 
-// --- MESSAGE WALL ---
+// --- MESSAGES WALL ---
 function MessageWall({ isOpen, onClose, user }: { isOpen: boolean, onClose: () => void, user: UserProfile }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -258,11 +279,7 @@ function MessageWall({ isOpen, onClose, user }: { isOpen: boolean, onClose: () =
     if (!isOpen) return;
     const load = async () => { await fetchWall(); };
     load();
-
-    const ch = supabase.channel('wall').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => {
-      fetchWall();
-    }).subscribe();
-
+    const ch = supabase.channel('wall').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => fetchWall()).subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [isOpen, fetchWall]);
 
@@ -270,13 +287,14 @@ function MessageWall({ isOpen, onClose, user }: { isOpen: boolean, onClose: () =
 
   return (
     <div className="fixed inset-0 z-[9999] bg-black flex flex-col animate-in slide-in-from-right duration-300">
-      <div className="p-6 border-b border-white/10 flex justify-between items-center bg-zinc-950">
-        <h2 className="text-2xl font-black italic text-white uppercase tracking-tighter">Squad Wall</h2>
+      <div className="p-6 border-b border-white/10 flex justify-between items-center bg-zinc-950 shadow-xl">
+        <h2 className="text-2xl font-black italic text-white uppercase tracking-tighter">Messages</h2>
         <button onClick={onClose} className="w-12 h-12 rounded-full bg-white/5 border border-white/10 text-white">✕</button>
       </div>
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {messages.map((m, i) => (
           <div key={i} className="flex gap-4">
+            <img src={getAvatarUrl(user.avatarType, m.user_name)} className="w-10 h-10 rounded-full border border-white/10" alt="" />
             <div className="flex-1 p-4 bg-zinc-900 rounded-2xl rounded-tl-none border border-white/5 shadow-lg">
               <p className="text-[10px] font-black text-zinc-500 uppercase mb-1">{m.user_name}</p>
               <p className="text-white text-sm">{m.content}</p>
@@ -286,11 +304,7 @@ function MessageWall({ isOpen, onClose, user }: { isOpen: boolean, onClose: () =
       </div>
       <div className="p-6 bg-zinc-950 border-t border-white/10">
         <div className="flex gap-3 bg-white/5 p-2 rounded-[2rem] border border-white/10">
-          <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (async () => {
-            if (!input.trim()) return;
-            await supabase.from('messages').insert([{ user_name: user.name, user_pfp: getAvatarUrl(user.avatarType, user.name), content: input }]);
-            setInput("");
-          })()} className="flex-1 bg-transparent px-4 py-2 text-white outline-none" placeholder="Broadcast to squad..." />
+          <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (async () => { if (!input.trim()) return; await supabase.from('messages').insert([{ user_name: user.name, content: input }]); setInput(""); })()} className="flex-1 bg-transparent px-4 py-2 text-white outline-none" placeholder="Message squad..." />
         </div>
       </div>
     </div>
@@ -315,14 +329,7 @@ function FestivalCard({ fest, onOpen, currentUser }: { fest: Festival, onOpen: (
         <h2 className="text-4xl font-black uppercase tracking-tighter text-white leading-none">{fest.name}</h2>
         <p className="text-xs font-bold text-white/40 uppercase tracking-widest mt-1">{fest.location}</p>
       </div>
-      <button onClick={async (e) => {
-        e.stopPropagation();
-        if (isGoing) return;
-        await supabase.from('squad').insert([{ festival_name: fest.name, user_name: currentUser.name, user_pfp: getAvatarUrl(currentUser.avatarType, currentUser.name) }]);
-        setIsGoing(true);
-      }} className={`absolute z-20 bottom-6 right-6 w-14 h-14 rounded-full border-2 transition-all shadow-xl ${isGoing ? "bg-green-500 border-green-400 text-white" : "bg-white text-black"}`}>
-        {isGoing ? "✓" : "+"}
-      </button>
+      <button onClick={async (e) => { e.stopPropagation(); if (isGoing) return; await supabase.from('squad').insert([{ festival_name: fest.name, user_name: currentUser.name, user_pfp: getAvatarUrl(currentUser.avatarType, currentUser.name) }]); setIsGoing(true); }} className={`absolute z-20 bottom-6 right-6 w-14 h-14 rounded-full border-2 transition-all shadow-xl ${isGoing ? "bg-green-500 border-green-400 text-white" : "bg-white text-black"}`}>{isGoing ? "✓" : "+"}</button>
     </div>
   );
 }
@@ -339,7 +346,7 @@ function SquadList({ festivalName }: { festivalName: string }) {
   return (
     <div className="space-y-4">
       {attendees.map((p, i) => (
-        <div key={i} className="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/5">
+        <div key={i} className="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/5 shadow-md">
           <img src={p.user_pfp} className="w-10 h-10 rounded-full border border-black shadow-lg" alt="" />
           <span className="font-bold text-sm text-zinc-300 tracking-tight">{p.user_name}</span>
         </div>
