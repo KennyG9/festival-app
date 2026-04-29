@@ -75,6 +75,43 @@ const FESTIVALS: Festival[] = [
 
 const getAvatarUrl = (type: string, seed: string) => `https://api.dicebear.com/7.x/pixel-art/svg?seed=${seed}&flip=${type === 'girl'}`;
 
+// --- SWIPE TO DELETE COMPONENT ---
+function SwipeableItem({ children, onDelete }: { children: React.ReactNode, onDelete: () => void }) {
+  const [startX, setStartX] = useState(0);
+  const [currentX, setCurrentX] = useState(0);
+
+  const onStart = (e: React.TouchEvent | React.MouseEvent) => {
+    setStartX('touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX);
+  };
+
+  const onMove = (e: React.TouchEvent | React.MouseEvent) => {
+    if (startX === 0) return;
+    const x = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+    const diff = x - startX;
+    if (diff < 0) setCurrentX(diff);
+  };
+
+  const onEnd = () => {
+    if (currentX < -60) setCurrentX(-80);
+    else setCurrentX(0);
+    setStartX(0);
+  };
+
+  return (
+    <div className="relative overflow-hidden rounded-xl bg-red-600">
+      <button onClick={onDelete} className="absolute right-0 top-0 bottom-0 w-20 flex items-center justify-center text-[10px] font-black uppercase text-white">Delete</button>
+      <div
+        className="relative bg-zinc-900 border border-white/5 p-3 flex justify-between items-center transition-transform duration-200 ease-out"
+        style={{ transform: `translateX(${currentX}px)` }}
+        onTouchStart={onStart} onTouchMove={onMove} onTouchEnd={onEnd}
+        onMouseDown={onStart} onMouseMove={(e) => onMove(e)} onMouseUp={onEnd} onMouseLeave={onEnd}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 // --- MAIN HUB ---
 export default function FestivalHub() {
   const [mounted, setMounted] = useState(false);
@@ -126,7 +163,7 @@ export default function FestivalHub() {
   return (
     <main className="min-h-screen bg-black text-white p-6 font-sans">
       <header className="max-w-7xl mx-auto flex justify-between items-center mb-10">
-        <h1 className="text-3xl font-black italic tracking-tighter">SQUAD HUB</h1>
+        <h1 className="text-3xl font-black italic tracking-tighter leading-none">SQUAD HUB</h1>
         <div className="flex gap-2">
           <button onClick={() => setShowMessages(true)} className="h-12 px-4 rounded-2xl bg-white/5 border border-white/10 active:scale-95 transition-all text-[10px] font-black uppercase tracking-widest">Messages</button>
           <button onClick={() => setShowProfile(true)} className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center active:scale-95 transition-all overflow-hidden">
@@ -204,6 +241,11 @@ function DetailItem({ label, isChecklist, festName, user }: DetailItemProps) {
     if (!error) { setInput(""); void fetchData(); }
   };
 
+  const deleteItem = async (id: string) => {
+    const { error } = await supabase.from('checklist').delete().eq('id', id);
+    if (!error) void fetchData();
+  };
+
   if (!isChecklist) return <div className="p-5 bg-white/5 border border-white/10 rounded-2xl font-bold italic text-white/90">{label}</div>;
 
   return (
@@ -216,14 +258,14 @@ function DetailItem({ label, isChecklist, festName, user }: DetailItemProps) {
         <div className="p-5 pt-0 space-y-4 animate-in fade-in duration-200">
           <div className="flex gap-2">
             <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} className="flex-1 bg-white/10 p-3 rounded-xl text-white text-sm outline-none font-bold" placeholder="Add gear..." />
-            <button onClick={add} className="bg-white text-black px-5 rounded-xl font-black">+</button>
+            <button onClick={add} className="bg-white text-black px-5 rounded-xl font-black active:scale-90 transition-all">+</button>
           </div>
           <div className="space-y-2">
             {items.map(it => (
-              <div key={it.id} className="flex justify-between items-center bg-zinc-900 p-4 rounded-xl border border-white/5">
+              <SwipeableItem key={it.id} onDelete={() => deleteItem(it.id)}>
                 <span className={`text-sm font-bold ${it.is_done ? 'line-through text-white/20' : 'text-white'}`}>{it.item_text}</span>
                 <button onClick={async () => { await supabase.from('checklist').update({ is_done: !it.is_done }).eq('id', it.id); void fetchData(); }} className={`w-6 h-6 rounded-md border-2 transition-all ${it.is_done ? 'bg-green-500 border-green-400' : 'border-white/20'}`}>{it.is_done && "✓"}</button>
-              </div>
+              </SwipeableItem>
             ))}
           </div>
         </div>
@@ -232,7 +274,7 @@ function DetailItem({ label, isChecklist, festName, user }: DetailItemProps) {
   );
 }
 
-// --- MESSAGES COMPONENT ---
+// --- MESSAGES ---
 function MessageWall({ isOpen, onClose, user }: { isOpen: boolean, onClose: () => void, user: UserProfile }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -266,7 +308,7 @@ function MessageWall({ isOpen, onClose, user }: { isOpen: boolean, onClose: () =
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {messages.map((m, i) => (
           <div key={i} className="flex gap-4">
-            <div className="flex-1 p-4 bg-zinc-900 rounded-2xl rounded-tl-none border border-white/5">
+            <div className="flex-1 p-4 bg-zinc-900 rounded-2xl rounded-tl-none border border-white/5 shadow-lg">
               <p className="text-[10px] font-black text-zinc-500 uppercase mb-1">{m.user_name}</p>
               <p className="text-white text-sm">{m.content}</p>
             </div>
@@ -283,7 +325,7 @@ function MessageWall({ isOpen, onClose, user }: { isOpen: boolean, onClose: () =
   );
 }
 
-// --- FESTIVAL CARD & GOING SYSTEM ---
+// --- CARDS & SQUAD ---
 function FestivalCard({ fest, onOpen, currentUser }: { fest: Festival, onOpen: () => void, currentUser: UserProfile }) {
   const [isGoing, setIsGoing] = useState(false);
 
@@ -321,7 +363,6 @@ function FestivalCard({ fest, onOpen, currentUser }: { fest: Festival, onOpen: (
   );
 }
 
-// --- SQUAD LIST ---
 function SquadList({ festivalName }: { festivalName: string }) {
   const [attendees, setAttendees] = useState<Attendee[]>([]);
   useEffect(() => {
@@ -334,7 +375,7 @@ function SquadList({ festivalName }: { festivalName: string }) {
   return (
     <div className="space-y-4">
       {attendees.map((p, i) => (
-        <div key={i} className="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/5">
+        <div key={i} className="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/5 shadow-md">
           <img src={p.user_pfp} className="w-10 h-10 rounded-full border border-black shadow-lg" alt="" />
           <span className="font-bold text-sm text-zinc-300 tracking-tight">{p.user_name}</span>
         </div>
