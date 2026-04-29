@@ -244,14 +244,22 @@ function MessageWall({ isOpen, onClose, userName, userPfp }: { isOpen: boolean, 
     };
     fetch();
     const channel = supabase.channel('live-wall')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload: { new: any }) => {
-        setMessages(prev => {
-          const updated = [payload.new as Message, ...prev];
-          localStorage.setItem('squad-wall-cache', JSON.stringify(updated.slice(0, 20)));
-          return updated;
-        });
-      }).subscribe();
-    return () => { supabase.removeChannel(channel); };
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        (payload: { new: Message }) => { // <--- Defined the specific type here
+          setMessages(prev => {
+            const updated = [payload.new, ...prev];
+            localStorage.setItem('squad-wall-cache', JSON.stringify(updated.slice(0, 20)));
+            return updated;
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [isOpen]);
 
   const sendMessage = async () => {
