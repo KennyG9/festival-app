@@ -12,20 +12,13 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// PWA Metadata - Makes it look like a native app
 export const metadata: Metadata = {
   title: "SQUAD HUB",
   description: "Festival Survival & Squad Sync",
   manifest: "/manifest.json",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "Squad Hub",
-  },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#000000",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
