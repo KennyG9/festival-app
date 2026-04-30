@@ -109,38 +109,50 @@ export default function FestivalHub() {
   const [showMessages, setShowMessages] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [regName, setRegName] = useState("");
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  // VERSION CONTROL LOGIC
+  const checkForUpdates = useCallback(async (manual = false) => {
+    if (manual) setIsUpdating(true);
+    try {
+      const res = await fetch(`/version.json?t=${Date.now()}`, {
+        cache: 'reload',
+        headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const latestVersion = data.version;
+        const localVersion = localStorage.getItem('squad_app_version');
+
+        if (localVersion && parseInt(localVersion) < latestVersion) {
+          localStorage.setItem('squad_app_version', latestVersion.toString());
+          // Force a full clean reload
+          window.location.href = window.location.origin + window.location.pathname + '?u=' + latestVersion;
+          return true;
+        } else if (!localVersion) {
+          localStorage.setItem('squad_app_version', latestVersion.toString());
+        } else if (manual) {
+          alert("App is up to date!");
+        }
+      }
+    } catch (err) {
+      console.error("Update check failed:", err);
+    } finally {
+      if (manual) setIsUpdating(false);
+    }
+    return false;
+  }, []);
 
   useEffect(() => {
-    const handleVersionAndInit = async () => {
-      try {
-        // Fetch the version file from public/version.json with a timestamp to bust cache
-        const res = await fetch(`/version.json?t=${Date.now()}`, { cache: 'no-store' });
-        if (res.ok) {
-          const data = await res.json();
-          const latestVersion = data.version;
-          const localVersion = localStorage.getItem('squad_app_version');
-
-          if (localVersion && parseInt(localVersion) < latestVersion) {
-            // New version detected. Update local storage and force a hard reload
-            localStorage.setItem('squad_app_version', latestVersion.toString());
-            window.location.reload();
-            return; // Stop initialization because we are reloading
-          } else if (!localVersion) {
-            localStorage.setItem('squad_app_version', latestVersion.toString());
-          }
-        }
-      } catch (err) {
-        console.error("Version check skipped:", err);
-      }
-
-      // Normal mount logic
+    const init = async () => {
+      await checkForUpdates();
       setMounted(true);
       const saved = localStorage.getItem('squad-profile');
       if (saved) setUser(JSON.parse(saved));
     };
-
-    handleVersionAndInit();
-  }, []);
+    init();
+  }, [checkForUpdates]);
 
   const handleRegister = (avatarType: 'boy' | 'girl') => {
     if (!regName.trim()) return;
@@ -201,6 +213,15 @@ export default function FestivalHub() {
             </div>
             <div className="space-y-3">
               <button onClick={() => setShowProfile(false)} className="w-full py-4 bg-white text-black font-black uppercase rounded-2xl active:scale-95 transition-all">Done</button>
+
+              <button
+                onClick={() => checkForUpdates(true)}
+                disabled={isUpdating}
+                className="w-full py-4 bg-zinc-800 text-white font-black uppercase rounded-2xl text-[10px] border border-white/10 active:scale-95 transition-all disabled:opacity-50"
+              >
+                {isUpdating ? "Checking..." : "Check for Update"}
+              </button>
+
               <button onClick={() => { localStorage.removeItem('squad-profile'); window.location.reload(); }} className="w-full py-4 bg-red-600/10 border border-red-600/20 text-red-500 font-black uppercase rounded-2xl text-[10px]">Delete Account</button>
             </div>
           </div>
@@ -238,14 +259,13 @@ export default function FestivalHub() {
   );
 }
 
-// --- COMPONENTS ---
+// --- SUB-COMPONENTS ---
 
 function DetailItem({ label, isChecklist, festName, user, link }: DetailItemProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [items, setItems] = useState<ChecklistItem[]>([]);
   const [input, setInput] = useState("");
   const [activeCategory, setActiveCategory] = useState("Essentials");
-
   const categories = ["Essentials", "Camping", "Clothing", "Tech", "Misc"];
 
   const sensors = useSensors(
@@ -260,11 +280,7 @@ function DetailItem({ label, isChecklist, festName, user, link }: DetailItemProp
       .order('position', { ascending: true });
 
     if (data) {
-      const sanitizedData = data.map(item => ({
-        ...item,
-        category: item.category || 'Essentials'
-      }));
-      setItems(sanitizedData as ChecklistItem[]);
+      setItems(data.map(item => ({ ...item, category: item.category || 'Essentials' })) as ChecklistItem[]);
     }
   }, [festName]);
 
@@ -289,8 +305,8 @@ function DetailItem({ label, isChecklist, festName, user, link }: DetailItemProp
   };
 
   const deleteItem = async (id: string) => {
-    const { error } = await supabase.from('checklist').delete().eq('id', id);
-    if (!error) void fetchData();
+    await supabase.from('checklist').delete().eq('id', id);
+    void fetchData();
   };
 
   const toggleItem = async (it: ChecklistItem) => {
@@ -301,16 +317,13 @@ function DetailItem({ label, isChecklist, festName, user, link }: DetailItemProp
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over) return;
-
     const overId = over.id as string;
+
     if (categories.includes(overId)) {
       const activeItem = items.find(i => i.id === active.id);
       if (activeItem && activeItem.category !== overId) {
         const filteredItems = items.filter(i => i.category === overId);
         const newPos = filteredItems.length > 0 ? Math.max(...filteredItems.map(i => i.position)) + 1 : 0;
-
-        const newItems = items.map(i => i.id === active.id ? { ...i, category: overId, position: newPos } : i);
-        setItems(newItems);
         await supabase.from('checklist').update({ category: overId, position: newPos }).eq('id', active.id);
         void fetchData();
         return;
@@ -321,29 +334,17 @@ function DetailItem({ label, isChecklist, festName, user, link }: DetailItemProp
       const oldIndex = items.findIndex((i) => i.id === active.id);
       const newIndex = items.findIndex((i) => i.id === over.id);
       const newArray = arrayMove(items, oldIndex, newIndex);
-
       setItems(newArray);
-
-      const updates = newArray.map((item, index) => ({
-        id: item.id,
-        position: index,
-        fest_name: festName,
-        item_text: item.item_text,
-        category: item.category
-      }));
-      await supabase.from('checklist').upsert(updates);
+      await supabase.from('checklist').upsert(newArray.map((item, idx) => ({
+        id: item.id, position: idx, fest_name: festName, item_text: item.item_text, category: item.category
+      })));
     }
   };
 
   if (!isChecklist) {
     if (link) {
       return (
-        <a
-          href={link}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="p-5 bg-white/5 border border-white/10 rounded-2xl font-bold italic text-white/90 hover:bg-white/10 hover:border-green-500 transition-all flex justify-between items-center group"
-        >
+        <a href={link} target="_blank" rel="noopener noreferrer" className="p-5 bg-white/5 border border-white/10 rounded-2xl font-bold italic text-white/90 hover:bg-white/10 hover:border-green-500 transition-all flex justify-between items-center group">
           <span>{label}</span>
           <span className="text-[10px] text-zinc-500 group-hover:text-green-500">OPEN LINK ↗</span>
         </a>
@@ -366,16 +367,13 @@ function DetailItem({ label, isChecklist, festName, user, link }: DetailItemProp
                 <CategoryBubble key={cat} cat={cat} activeCategory={activeCategory} setActiveCategory={setActiveCategory} />
               ))}
             </div>
-
             <div className="flex gap-2">
               <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} className="flex-1 bg-white/10 p-3 rounded-xl text-white text-sm outline-none font-bold" placeholder={`Add to ${activeCategory}...`} />
               <button onClick={add} className="bg-white text-black px-5 rounded-xl font-black">+</button>
             </div>
-
             {categories.map(cat => {
               const categoryItems = items.filter(i => i.category === cat);
               if (categoryItems.length === 0 && activeCategory !== cat) return null;
-
               return (
                 <div key={cat} className="space-y-3">
                   <div className="flex items-center gap-2 opacity-30">
@@ -383,16 +381,10 @@ function DetailItem({ label, isChecklist, festName, user, link }: DetailItemProp
                     <span className="text-[9px] font-black uppercase tracking-widest">{cat}</span>
                     <div className="h-[1px] flex-1 bg-white/20" />
                   </div>
-
                   <SortableContext items={categoryItems.map(i => i.id)} strategy={verticalListSortingStrategy}>
                     <div className="space-y-2">
                       {categoryItems.map(it => (
-                        <SortableSwipeItem
-                          key={it.id}
-                          it={it}
-                          onDelete={() => deleteItem(it.id)}
-                          onToggle={() => toggleItem(it)}
-                        />
+                        <SortableSwipeItem key={it.id} it={it} onDelete={() => deleteItem(it.id)} onToggle={() => toggleItem(it)} />
                       ))}
                     </div>
                   </SortableContext>
@@ -409,13 +401,7 @@ function DetailItem({ label, isChecklist, festName, user, link }: DetailItemProp
 function CategoryBubble({ cat, activeCategory, setActiveCategory }: CategoryBubbleProps) {
   const { setNodeRef, isOver } = useSortable({ id: cat, disabled: true });
   return (
-    <button
-      ref={setNodeRef}
-      onClick={() => setActiveCategory(cat)}
-      className={`px-4 py-2 rounded-full text-[10px] font-black uppercase transition-all whitespace-nowrap border-2 ${isOver ? 'border-green-500 bg-green-500/20' : 'border-transparent'} ${activeCategory === cat ? 'bg-white text-black scale-105' : 'bg-white/5 text-zinc-500'}`}
-    >
-      {cat}
-    </button>
+    <button ref={setNodeRef} onClick={() => setActiveCategory(cat)} className={`px-4 py-2 rounded-full text-[10px] font-black uppercase transition-all whitespace-nowrap border-2 ${isOver ? 'border-green-500 bg-green-500/20' : 'border-transparent'} ${activeCategory === cat ? 'bg-white text-black scale-105' : 'bg-white/5 text-zinc-500'}`}>{cat}</button>
   );
 }
 
@@ -426,9 +412,7 @@ function SortableSwipeItem({ it, onDelete, onToggle }: { it: ChecklistItem, onDe
     <div ref={setNodeRef} style={style}>
       <SwipeableItem onDelete={onDelete}>
         <div className="flex items-center gap-3 w-full">
-          <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-1">
-            <svg width="12" height="12" viewBox="0 0 20 20" fill="#52525b"><path d="M7 2a2 2 0 10-4 0 2 2 0 004 0zM7 10a2 2 0 10-4 0 2 2 0 004 0zM7 18a2 2 0 10-4 0 2 2 0 004 0zM17 2a2 2 0 10-4 0 2 2 0 004 0zM17 10a2 2 0 10-4 0 2 2 0 004 0zM17 18a2 2 0 10-4 0 2 2 0 004 0z" /></svg>
-          </div>
+          <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-1"><svg width="12" height="12" viewBox="0 0 20 20" fill="#52525b"><path d="M7 2a2 2 0 10-4 0 2 2 0 004 0zM7 10a2 2 0 10-4 0 2 2 0 004 0zM7 18a2 2 0 10-4 0 2 2 0 004 0zM17 2a2 2 0 10-4 0 2 2 0 004 0zM17 10a2 2 0 10-4 0 2 2 0 004 0zM17 18a2 2 0 10-4 0 2 2 0 004 0z" /></svg></div>
           <span className={`flex-1 text-sm font-bold ${it.is_done ? 'line-through text-white/20' : 'text-white'}`}>{it.item_text}</span>
           <button onClick={onToggle} className={`w-6 h-6 rounded-md border-2 transition-all ${it.is_done ? 'bg-green-500 border-green-400' : 'border-white/20'}`}>{it.is_done && "✓"}</button>
         </div>
@@ -451,9 +435,7 @@ function SwipeableItem({ children, onDelete }: { children: React.ReactNode, onDe
   return (
     <div className="relative overflow-hidden rounded-xl bg-red-600">
       <button onClick={onDelete} className="absolute right-0 top-0 bottom-0 w-20 flex items-center justify-center text-[10px] font-black uppercase text-white">Delete</button>
-      <div className="relative bg-zinc-900 border border-white/5 p-3 flex justify-between items-center transition-transform duration-200 ease-out" style={{ transform: `translateX(${currentX}px)` }} onTouchStart={onStart} onTouchMove={onMove} onTouchEnd={onEnd} onMouseDown={onStart} onMouseMove={(e) => onMove(e)} onMouseUp={onEnd} onMouseLeave={onEnd}>
-        {children}
-      </div>
+      <div className="relative bg-zinc-900 border border-white/5 p-3 flex justify-between items-center transition-transform duration-200 ease-out" style={{ transform: `translateX(${currentX}px)` }} onTouchStart={onStart} onTouchMove={onMove} onTouchEnd={onEnd} onMouseDown={onStart} onMouseMove={(e) => onMove(e)} onMouseUp={onEnd} onMouseLeave={onEnd}>{children}</div>
     </div>
   );
 }
