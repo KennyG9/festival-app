@@ -308,7 +308,7 @@ function DetailItem({ label, isChecklist, festName, user, link }: DetailItemProp
   const [input, setInput] = useState("");
   const [activeCategory, setActiveCategory] = useState("Essentials");
 
-  const categories = ["Essentials", "Camping", "Clothing", "Tech"];
+  const categories = ["Essentials", "Camping", "Clothing", "Tech", "Misc"];
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
