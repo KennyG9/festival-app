@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { createClient, RealtimeChannel } from '@supabase/supabase-js';
 import {
   DndContext,
-  rectIntersection,
+  pointerWithin,
   KeyboardSensor,
   PointerSensor,
   useSensor,
@@ -242,26 +242,24 @@ function CategoryBubble({
   cat,
   activeCategory,
   setActiveCategory,
-  isCurrentTab
 }: {
   cat: string,
   activeCategory: string,
   setActiveCategory: (c: string) => void,
-  isCurrentTab: boolean
 }) {
-  // Logic: Only act as a drop zone if it's NOT the tab we are already on
   const { setNodeRef, isOver } = useDroppable({
     id: `drop-${cat}`,
-    disabled: isCurrentTab
   });
+
+  const isActive = activeCategory === cat;
 
   return (
     <button
       ref={setNodeRef}
       onClick={() => setActiveCategory(cat)}
       className={`select-none px-4 py-2 rounded-full text-[10px] font-black uppercase transition-all border-2 
-        ${isOver ? 'border-green-500 bg-green-500/20 scale-110' : 'border-transparent'} 
-        ${activeCategory === cat ? 'bg-white text-black scale-105' : 'bg-white/5 text-zinc-500'}`}
+        ${isOver && !isActive ? 'border-green-500 bg-green-500/20 scale-110' : 'border-transparent'} 
+        ${isActive ? 'bg-white text-black scale-105' : 'bg-white/5 text-zinc-500'}`}
     >
       {cat}
     </button>
@@ -327,11 +325,11 @@ function DetailItem({ label, isChecklist, festName, user, link }: DetailItemProp
 
     const overId = over.id.toString();
 
-    // Check for moving to another category
     if (overId.startsWith('drop-')) {
       const targetCat = overId.replace('drop-', '');
       const itemToMove = items.find(i => i.id === active.id);
 
+      // Move only if target category is different from current
       if (itemToMove && itemToMove.category !== targetCat) {
         await supabase.from('checklist').update({ category: targetCat }).eq('id', active.id);
         void fetchData();
@@ -339,7 +337,6 @@ function DetailItem({ label, isChecklist, festName, user, link }: DetailItemProp
       }
     }
 
-    // Standard sorting in same list
     if (active.id !== over.id) {
       const oldIndex = items.findIndex((i) => i.id === active.id);
       const newIndex = items.findIndex((i) => i.id === over.id);
@@ -369,7 +366,7 @@ function DetailItem({ label, isChecklist, festName, user, link }: DetailItemProp
       </button>
       {isOpen && (
         <div className="p-5 pt-0 space-y-6 animate-in fade-in duration-200">
-          <DndContext sensors={sensors} collisionDetection={rectIntersection} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+          <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
             <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
               {categories.map(cat => (
                 <CategoryBubble
@@ -377,7 +374,6 @@ function DetailItem({ label, isChecklist, festName, user, link }: DetailItemProp
                   cat={cat}
                   activeCategory={activeCategory}
                   setActiveCategory={setActiveCategory}
-                  isCurrentTab={activeCategory === cat}
                 />
               ))}
             </div>
@@ -428,7 +424,7 @@ function SortableSwipeItem({ it, onDelete, onToggle }: { it: ChecklistItem, onDe
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: it.id });
   const style = {
     transform: CSS.Translate.toString(transform),
-    transition,
+    transition: transition || 'transform 200ms ease',
     zIndex: isDragging ? 100 : 1,
     opacity: isDragging ? 0.3 : 1,
     touchAction: 'none'
