@@ -238,14 +238,30 @@ export default function FestivalHub() {
 }
 
 // --- DROP-TARGET BUBBLE ---
-function CategoryBubble({ cat, activeCategory, setActiveCategory }: { cat: string, activeCategory: string, setActiveCategory: (c: string) => void }) {
-  const { setNodeRef, isOver } = useDroppable({ id: `drop-${cat}` });
+function CategoryBubble({
+  cat,
+  activeCategory,
+  setActiveCategory,
+  isCurrentTab
+}: {
+  cat: string,
+  activeCategory: string,
+  setActiveCategory: (c: string) => void,
+  isCurrentTab: boolean
+}) {
+  // Logic: Only act as a drop zone if it's NOT the tab we are already on
+  const { setNodeRef, isOver } = useDroppable({
+    id: `drop-${cat}`,
+    disabled: isCurrentTab
+  });
 
   return (
     <button
       ref={setNodeRef}
       onClick={() => setActiveCategory(cat)}
-      className={`select-none px-4 py-2 rounded-full text-[10px] font-black uppercase transition-all border-2 ${isOver ? 'border-green-500 bg-green-500/20 scale-110' : 'border-transparent'} ${activeCategory === cat ? 'bg-white text-black scale-105' : 'bg-white/5 text-zinc-500'}`}
+      className={`select-none px-4 py-2 rounded-full text-[10px] font-black uppercase transition-all border-2 
+        ${isOver ? 'border-green-500 bg-green-500/20 scale-110' : 'border-transparent'} 
+        ${activeCategory === cat ? 'bg-white text-black scale-105' : 'bg-white/5 text-zinc-500'}`}
     >
       {cat}
     </button>
@@ -286,7 +302,13 @@ function DetailItem({ label, isChecklist, festName, user, link }: DetailItemProp
   const add = async () => {
     if (!input.trim()) return;
     const newPos = items.length > 0 ? Math.max(...items.map(i => i.position)) + 1 : 0;
-    const { error } = await supabase.from('checklist').insert([{ fest_name: festName, item_text: input, added_by: user.name, category: activeCategory, position: newPos }]).select();
+    const { error } = await supabase.from('checklist').insert([{
+      fest_name: festName,
+      item_text: input,
+      added_by: user.name,
+      category: activeCategory,
+      position: newPos
+    }]).select();
     if (!error) { setInput(""); void fetchData(); }
   };
 
@@ -305,21 +327,27 @@ function DetailItem({ label, isChecklist, festName, user, link }: DetailItemProp
 
     const overId = over.id.toString();
 
+    // Check for moving to another category
     if (overId.startsWith('drop-')) {
-      const newCat = overId.replace('drop-', '');
-      if (activeDragItem && activeDragItem.category !== newCat) {
-        await supabase.from('checklist').update({ category: newCat }).eq('id', active.id);
+      const targetCat = overId.replace('drop-', '');
+      const itemToMove = items.find(i => i.id === active.id);
+
+      if (itemToMove && itemToMove.category !== targetCat) {
+        await supabase.from('checklist').update({ category: targetCat }).eq('id', active.id);
         void fetchData();
         return;
       }
     }
 
+    // Standard sorting in same list
     if (active.id !== over.id) {
       const oldIndex = items.findIndex((i) => i.id === active.id);
       const newIndex = items.findIndex((i) => i.id === over.id);
       const newArray = arrayMove(items, oldIndex, newIndex);
       setItems(newArray);
-      await supabase.from('checklist').upsert(newArray.map((item, idx) => ({ id: item.id, position: idx, fest_name: festName, item_text: item.item_text, category: item.category })));
+      await supabase.from('checklist').upsert(newArray.map((item, idx) => ({
+        id: item.id, position: idx, fest_name: festName, item_text: item.item_text, category: item.category
+      })));
     }
   };
 
@@ -344,17 +372,26 @@ function DetailItem({ label, isChecklist, festName, user, link }: DetailItemProp
           <DndContext sensors={sensors} collisionDetection={rectIntersection} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
             <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
               {categories.map(cat => (
-                <CategoryBubble key={cat} cat={cat} activeCategory={activeCategory} setActiveCategory={setActiveCategory} />
+                <CategoryBubble
+                  key={cat}
+                  cat={cat}
+                  activeCategory={activeCategory}
+                  setActiveCategory={setActiveCategory}
+                  isCurrentTab={activeCategory === cat}
+                />
               ))}
             </div>
+
             <div className="flex gap-2">
               <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} className="flex-1 bg-white/10 p-3 rounded-xl text-white text-sm outline-none font-bold" placeholder={`Add to ${activeCategory}...`} />
               <button onClick={add} className="bg-white text-black px-5 rounded-xl font-black">+</button>
             </div>
+
             <div className="space-y-3">
               <div className="flex items-center gap-2 opacity-30">
                 <div className="h-[1px] flex-1 bg-white/20" /><span className="text-[9px] font-black uppercase tracking-widest">{activeCategory}</span><div className="h-[1px] flex-1 bg-white/20" />
               </div>
+
               <SortableContext items={filteredItems.map(i => i.id)} strategy={verticalListSortingStrategy}>
                 <div className="space-y-2 min-h-[50px]">
                   {filteredItems.map(it => (
