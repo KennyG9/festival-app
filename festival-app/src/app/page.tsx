@@ -271,7 +271,8 @@ export default function FestivalHub() {
   );
 }
 
-// --- CHECKLIST COMPONENT ---
+// --- REPLACE YOUR DetailItem COMPONENT WITH THIS VERSION ---
+
 function DetailItem({ label, isChecklist, festName, user }: DetailItemProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [items, setItems] = useState<ChecklistItem[]>([]);
@@ -290,7 +291,15 @@ function DetailItem({ label, isChecklist, festName, user }: DetailItemProps) {
       .select('*')
       .eq('fest_name', festName)
       .order('position', { ascending: true });
-    if (data) setItems(data as ChecklistItem[]);
+
+    if (data) {
+      // MASTER TECH FIX: Map items with no category to 'Essentials' so they don't vanish
+      const sanitizedData = data.map(item => ({
+        ...item,
+        category: item.category || 'Essentials'
+      }));
+      setItems(sanitizedData as ChecklistItem[]);
+    }
   }, [festName]);
 
   useEffect(() => {
@@ -330,7 +339,7 @@ function DetailItem({ label, isChecklist, festName, user }: DetailItemProps) {
       const newIndex = items.findIndex((i) => i.id === over.id);
       const newArray = arrayMove(items, oldIndex, newIndex);
 
-      setItems(newArray); // Seamless UI update
+      setItems(newArray);
 
       const updates = newArray.map((item, index) => ({
         id: item.id,
@@ -353,7 +362,6 @@ function DetailItem({ label, isChecklist, festName, user }: DetailItemProps) {
       </button>
       {isOpen && (
         <div className="p-5 pt-0 space-y-6 animate-in fade-in duration-200">
-          {/* Category Bubbles */}
           <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
             {categories.map(cat => (
               <button
@@ -366,16 +374,15 @@ function DetailItem({ label, isChecklist, festName, user }: DetailItemProps) {
             ))}
           </div>
 
-          {/* Add Item */}
           <div className="flex gap-2">
             <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} className="flex-1 bg-white/10 p-3 rounded-xl text-white text-sm outline-none font-bold" placeholder={`Add to ${activeCategory}...`} />
-            <button onClick={add} className="bg-white text-black px-5 rounded-xl font-black active:scale-90 transition-all">+</button>
+            <button onClick={add} className="bg-white text-black px-5 rounded-xl font-black">+</button>
           </div>
 
-          {/* Draggable List Categorized */}
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             {categories.map(cat => {
               const categoryItems = items.filter(i => i.category === cat);
+              // Show category if it's the active one or if it has items
               if (categoryItems.length === 0 && activeCategory !== cat) return null;
 
               return (
