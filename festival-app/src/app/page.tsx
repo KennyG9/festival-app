@@ -2,6 +2,23 @@
 /* eslint-disable @next/next/no-img-element */
 import React, { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 const supabaseUrl = 'https://avnbzaskdrpyjtwvmlvs.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF2bmJ6YXNrZHJweWp0d3ZtbHZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczOTM2MDYsImV4cCI6MjA5Mjk2OTYwNn0.aKnSzoJR08jG8ayVzKjUKoWSqu4uo8tg3J3E9wKzdg4';
@@ -39,6 +56,8 @@ interface ChecklistItem {
   item_text: string;
   is_done: boolean;
   added_by: string;
+  category: string;
+  position: number;
 }
 
 interface DetailItemProps {
@@ -51,7 +70,7 @@ interface DetailItemProps {
 // --- DATA ---
 const FESTIVALS: Festival[] = [
   {
-    name: "Lost Lands ",
+    name: "Lost Lands",
     location: "Thornville, Ohio",
     date: "2026-09-18",
     image: "https://www.lostlandsfestival.com/wp-content/uploads/2026/01/Lost_Lands_2026_Logo_WithDatesandLocation_1000px.png",
@@ -74,6 +93,41 @@ const FESTIVALS: Festival[] = [
 ];
 
 const getAvatarUrl = (type: string, seed: string) => `https://api.dicebear.com/7.x/pixel-art/svg?seed=${seed}&flip=${type === 'girl'}`;
+
+// --- SORTABLE WRAPPER FOR SWIPEABLE ITEM ---
+function SortableSwipeItem({
+  it,
+  onDelete,
+  onToggle
+}: {
+  it: ChecklistItem,
+  onDelete: () => void,
+  onToggle: () => void
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: it.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 100 : 1,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <SwipeableItem onDelete={onDelete}>
+        <div className="flex items-center gap-3 w-full">
+          {/* Drag Handle */}
+          <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-1">
+            <svg width="12" height="12" viewBox="0 0 20 20" fill="#52525b"><path d="M7 2a2 2 0 10-4 0 2 2 0 004 0zM7 10a2 2 0 10-4 0 2 2 0 004 0zM7 18a2 2 0 10-4 0 2 2 0 004 0zM17 2a2 2 0 10-4 0 2 2 0 004 0zM17 10a2 2 0 10-4 0 2 2 0 004 0zM17 18a2 2 0 10-4 0 2 2 0 004 0z" /></svg>
+          </div>
+          <span className={`flex-1 text-sm font-bold ${it.is_done ? 'line-through text-white/20' : 'text-white'}`}>{it.item_text}</span>
+          <button onClick={onToggle} className={`w-6 h-6 rounded-md border-2 transition-all ${it.is_done ? 'bg-green-500 border-green-400' : 'border-white/20'}`}>{it.is_done && "✓"}</button>
+        </div>
+      </SwipeableItem>
+    </div>
+  );
+}
 
 // --- SWIPE TO DELETE COMPONENT ---
 function SwipeableItem({ children, onDelete }: { children: React.ReactNode, onDelete: () => void }) {
@@ -222,9 +276,20 @@ function DetailItem({ label, isChecklist, festName, user }: DetailItemProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [items, setItems] = useState<ChecklistItem[]>([]);
   const [input, setInput] = useState("");
+  const [activeCategory, setActiveCategory] = useState("Essentials");
+
+  const categories = ["Essentials", "Camping", "Clothing", "Tech"];
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
 
   const fetchData = useCallback(async () => {
-    const { data } = await supabase.from('checklist').select('*').eq('fest_name', festName).order('created_at', { ascending: true });
+    const { data } = await supabase.from('checklist')
+      .select('*')
+      .eq('fest_name', festName)
+      .order('position', { ascending: true });
     if (data) setItems(data as ChecklistItem[]);
   }, [festName]);
 
@@ -237,13 +302,45 @@ function DetailItem({ label, isChecklist, festName, user }: DetailItemProps) {
 
   const add = async () => {
     if (!input.trim()) return;
-    const { error } = await supabase.from('checklist').insert([{ fest_name: festName, item_text: input, added_by: user.name }]).select();
+    const newPos = items.length > 0 ? Math.max(...items.map(i => i.position)) + 1 : 0;
+    const { error } = await supabase.from('checklist').insert([{
+      fest_name: festName,
+      item_text: input,
+      added_by: user.name,
+      category: activeCategory,
+      position: newPos
+    }]).select();
     if (!error) { setInput(""); void fetchData(); }
   };
 
   const deleteItem = async (id: string) => {
     const { error } = await supabase.from('checklist').delete().eq('id', id);
     if (!error) void fetchData();
+  };
+
+  const toggleItem = async (it: ChecklistItem) => {
+    await supabase.from('checklist').update({ is_done: !it.is_done }).eq('id', it.id);
+    void fetchData();
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = items.findIndex((i) => i.id === active.id);
+      const newIndex = items.findIndex((i) => i.id === over.id);
+      const newArray = arrayMove(items, oldIndex, newIndex);
+
+      setItems(newArray); // Seamless UI update
+
+      const updates = newArray.map((item, index) => ({
+        id: item.id,
+        position: index,
+        fest_name: festName,
+        item_text: item.item_text,
+        category: item.category
+      }));
+      await supabase.from('checklist').upsert(updates);
+    }
   };
 
   if (!isChecklist) return <div className="p-5 bg-white/5 border border-white/10 rounded-2xl font-bold italic text-white/90">{label}</div>;
@@ -255,19 +352,56 @@ function DetailItem({ label, isChecklist, festName, user }: DetailItemProps) {
         <span className={`${isOpen ? 'rotate-180' : ''} transition-transform`}>▼</span>
       </button>
       {isOpen && (
-        <div className="p-5 pt-0 space-y-4 animate-in fade-in duration-200">
-          <div className="flex gap-2">
-            <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} className="flex-1 bg-white/10 p-3 rounded-xl text-white text-sm outline-none font-bold" placeholder="Add gear..." />
-            <button onClick={add} className="bg-white text-black px-5 rounded-xl font-black active:scale-90 transition-all">+</button>
-          </div>
-          <div className="space-y-2">
-            {items.map(it => (
-              <SwipeableItem key={it.id} onDelete={() => deleteItem(it.id)}>
-                <span className={`text-sm font-bold ${it.is_done ? 'line-through text-white/20' : 'text-white'}`}>{it.item_text}</span>
-                <button onClick={async () => { await supabase.from('checklist').update({ is_done: !it.is_done }).eq('id', it.id); void fetchData(); }} className={`w-6 h-6 rounded-md border-2 transition-all ${it.is_done ? 'bg-green-500 border-green-400' : 'border-white/20'}`}>{it.is_done && "✓"}</button>
-              </SwipeableItem>
+        <div className="p-5 pt-0 space-y-6 animate-in fade-in duration-200">
+          {/* Category Bubbles */}
+          <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+            {categories.map(cat => (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                className={`px-4 py-2 rounded-full text-[10px] font-black uppercase transition-all whitespace-nowrap ${activeCategory === cat ? 'bg-white text-black scale-105' : 'bg-white/5 text-zinc-500 border border-white/5'}`}
+              >
+                {cat}
+              </button>
             ))}
           </div>
+
+          {/* Add Item */}
+          <div className="flex gap-2">
+            <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} className="flex-1 bg-white/10 p-3 rounded-xl text-white text-sm outline-none font-bold" placeholder={`Add to ${activeCategory}...`} />
+            <button onClick={add} className="bg-white text-black px-5 rounded-xl font-black active:scale-90 transition-all">+</button>
+          </div>
+
+          {/* Draggable List Categorized */}
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            {categories.map(cat => {
+              const categoryItems = items.filter(i => i.category === cat);
+              if (categoryItems.length === 0 && activeCategory !== cat) return null;
+
+              return (
+                <div key={cat} className="space-y-3">
+                  <div className="flex items-center gap-2 opacity-30">
+                    <div className="h-[1px] flex-1 bg-white/20" />
+                    <span className="text-[9px] font-black uppercase tracking-widest">{cat}</span>
+                    <div className="h-[1px] flex-1 bg-white/20" />
+                  </div>
+
+                  <SortableContext items={categoryItems.map(i => i.id)} strategy={verticalListSortingStrategy}>
+                    <div className="space-y-2">
+                      {categoryItems.map(it => (
+                        <SortableSwipeItem
+                          key={it.id}
+                          it={it}
+                          onDelete={() => deleteItem(it.id)}
+                          onToggle={() => toggleItem(it)}
+                        />
+                      ))}
+                    </div>
+                  </SortableContext>
+                </div>
+              );
+            })}
+          </DndContext>
         </div>
       )}
     </div>
@@ -316,7 +450,7 @@ function MessageWall({ isOpen, onClose, user }: { isOpen: boolean, onClose: () =
         ))}
       </div>
       <div className="p-6 bg-zinc-950 border-t border-white/10">
-        <div className="flex gap-3 bg-white/5 p-2 rounded-[2rem] border border-white/10">
+        <div className="flex gap-3 bg-white/5 p-2 rounded-[2rem] border border-white/10 shadow-inner">
           <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()} className="flex-1 bg-transparent px-4 py-2 text-white outline-none text-sm" placeholder="Message squad..." />
           <button onClick={send} className="bg-white text-black px-6 rounded-full font-black uppercase text-[10px] active:scale-95">Post</button>
         </div>
