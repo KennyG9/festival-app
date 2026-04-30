@@ -111,13 +111,12 @@ export default function FestivalHub() {
   const [regName, setRegName] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
 
-  // VERSION CONTROL LOGIC
   const checkForUpdates = useCallback(async (manual = false) => {
     if (manual) setIsUpdating(true);
     try {
-      const res = await fetch(`/version.json?t=${Date.now()}`, {
-        cache: 'reload',
-        headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+      const res = await fetch(`/version.json?nocache=${Date.now()}`, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' }
       });
 
       if (res.ok) {
@@ -125,21 +124,20 @@ export default function FestivalHub() {
         const latestVersion = data.version;
         const localVersion = localStorage.getItem('squad_app_version');
 
-        if (localVersion && parseInt(localVersion) < latestVersion) {
+        if (manual || (localVersion && parseInt(localVersion) < latestVersion)) {
           localStorage.setItem('squad_app_version', latestVersion.toString());
-          // Force a full clean reload
-          window.location.href = window.location.origin + window.location.pathname + '?u=' + latestVersion;
+          const url = new URL(window.location.href);
+          url.searchParams.set('reload_ts', Date.now().toString());
+          window.location.replace(url.toString());
           return true;
         } else if (!localVersion) {
           localStorage.setItem('squad_app_version', latestVersion.toString());
-        } else if (manual) {
-          alert("App is up to date!");
         }
       }
     } catch (err) {
       console.error("Update check failed:", err);
     } finally {
-      if (manual) setIsUpdating(false);
+      if (manual) setTimeout(() => setIsUpdating(false), 500);
     }
     return false;
   }, []);
@@ -219,7 +217,7 @@ export default function FestivalHub() {
                 disabled={isUpdating}
                 className="w-full py-4 bg-zinc-800 text-white font-black uppercase rounded-2xl text-[10px] border border-white/10 active:scale-95 transition-all disabled:opacity-50"
               >
-                {isUpdating ? "Checking..." : "Check for Update"}
+                {isUpdating ? "Syncing..." : "Update App"}
               </button>
 
               <button onClick={() => { localStorage.removeItem('squad-profile'); window.location.reload(); }} className="w-full py-4 bg-red-600/10 border border-red-600/20 text-red-500 font-black uppercase rounded-2xl text-[10px]">Delete Account</button>
@@ -398,22 +396,30 @@ function DetailItem({ label, isChecklist, festName, user, link }: DetailItemProp
   );
 }
 
+// FIX: Added select-none to Category Bubbles
 function CategoryBubble({ cat, activeCategory, setActiveCategory }: CategoryBubbleProps) {
   const { setNodeRef, isOver } = useSortable({ id: cat, disabled: true });
   return (
-    <button ref={setNodeRef} onClick={() => setActiveCategory(cat)} className={`px-4 py-2 rounded-full text-[10px] font-black uppercase transition-all whitespace-nowrap border-2 ${isOver ? 'border-green-500 bg-green-500/20' : 'border-transparent'} ${activeCategory === cat ? 'bg-white text-black scale-105' : 'bg-white/5 text-zinc-500'}`}>{cat}</button>
+    <button
+      ref={setNodeRef}
+      onClick={() => setActiveCategory(cat)}
+      className={`select-none px-4 py-2 rounded-full text-[10px] font-black uppercase transition-all whitespace-nowrap border-2 ${isOver ? 'border-green-500 bg-green-500/20' : 'border-transparent'} ${activeCategory === cat ? 'bg-white text-black scale-105' : 'bg-white/5 text-zinc-500'}`}
+    >
+      {cat}
+    </button>
   );
 }
 
+// FIX: Added select-none to Sortable Swipe Items
 function SortableSwipeItem({ it, onDelete, onToggle }: { it: ChecklistItem, onDelete: () => void, onToggle: () => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: it.id });
   const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 100 : 1, opacity: isDragging ? 0.5 : 1 };
   return (
-    <div ref={setNodeRef} style={style}>
+    <div ref={setNodeRef} style={style} className="select-none">
       <SwipeableItem onDelete={onDelete}>
         <div className="flex items-center gap-3 w-full">
           <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-1"><svg width="12" height="12" viewBox="0 0 20 20" fill="#52525b"><path d="M7 2a2 2 0 10-4 0 2 2 0 004 0zM7 10a2 2 0 10-4 0 2 2 0 004 0zM7 18a2 2 0 10-4 0 2 2 0 004 0zM17 2a2 2 0 10-4 0 2 2 0 004 0zM17 10a2 2 0 10-4 0 2 2 0 004 0zM17 18a2 2 0 10-4 0 2 2 0 004 0z" /></svg></div>
-          <span className={`flex-1 text-sm font-bold ${it.is_done ? 'line-through text-white/20' : 'text-white'}`}>{it.item_text}</span>
+          <span className="flex-1 text-sm font-bold it.is_done ? 'line-through text-white/20' : 'text-white'">{it.item_text}</span>
           <button onClick={onToggle} className={`w-6 h-6 rounded-md border-2 transition-all ${it.is_done ? 'bg-green-500 border-green-400' : 'border-white/20'}`}>{it.is_done && "✓"}</button>
         </div>
       </SwipeableItem>
