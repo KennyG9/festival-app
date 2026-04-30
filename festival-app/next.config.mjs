@@ -4,6 +4,8 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  // This forces Next.js to use unique hashes for all JS/CSS files
+  trailingSlash: true,
 };
 
 export default nextConfig;

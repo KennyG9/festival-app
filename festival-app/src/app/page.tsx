@@ -81,7 +81,7 @@ const FESTIVALS: Festival[] = [
     location: "Thornville, Ohio",
     date: "2026-09-18",
     image: "https://www.lostlandsfestival.com/wp-content/uploads/2026/01/Lost_Lands_2026_Logo_WithDatesandLocation_1000px.png",
-    details: ["Camping: GA Car", "Entry:  Leave Wed 8am Arrive Thur 12am", "Checklist|checklist", "Tickets|https://lostlands.frontgatetickets.com/event/7nuf54cayx3j1p90"]
+    details: ["Camping: GA Car", "Entry: Leave Wed 8am Arrive Thur 12am", "Checklist|checklist", "Tickets|https://lostlands.frontgatetickets.com/event/7nuf54cayx3j1p90"]
   },
   {
     name: "EDC Orlando",
@@ -101,77 +101,6 @@ const FESTIVALS: Festival[] = [
 
 const getAvatarUrl = (type: string, seed: string) => `https://api.dicebear.com/7.x/pixel-art/svg?seed=${seed}&flip=${type === 'girl'}`;
 
-// --- SORTABLE WRAPPER FOR SWIPEABLE ITEM ---
-function SortableSwipeItem({
-  it,
-  onDelete,
-  onToggle
-}: {
-  it: ChecklistItem,
-  onDelete: () => void,
-  onToggle: () => void
-}) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: it.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    zIndex: isDragging ? 100 : 1,
-    opacity: isDragging ? 0.5 : 1,
-  };
-
-  return (
-    <div ref={setNodeRef} style={style}>
-      <SwipeableItem onDelete={onDelete}>
-        <div className="flex items-center gap-3 w-full">
-          <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-1">
-            <svg width="12" height="12" viewBox="0 0 20 20" fill="#52525b"><path d="M7 2a2 2 0 10-4 0 2 2 0 004 0zM7 10a2 2 0 10-4 0 2 2 0 004 0zM7 18a2 2 0 10-4 0 2 2 0 004 0zM17 2a2 2 0 10-4 0 2 2 0 004 0zM17 10a2 2 0 10-4 0 2 2 0 004 0zM17 18a2 2 0 10-4 0 2 2 0 004 0z" /></svg>
-          </div>
-          <span className={`flex-1 text-sm font-bold ${it.is_done ? 'line-through text-white/20' : 'text-white'}`}>{it.item_text}</span>
-          <button onClick={onToggle} className={`w-6 h-6 rounded-md border-2 transition-all ${it.is_done ? 'bg-green-500 border-green-400' : 'border-white/20'}`}>{it.is_done && "✓"}</button>
-        </div>
-      </SwipeableItem>
-    </div>
-  );
-}
-
-// --- SWIPE TO DELETE COMPONENT ---
-function SwipeableItem({ children, onDelete }: { children: React.ReactNode, onDelete: () => void }) {
-  const [startX, setStartX] = useState(0);
-  const [currentX, setCurrentX] = useState(0);
-
-  const onStart = (e: React.TouchEvent | React.MouseEvent) => {
-    setStartX('touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX);
-  };
-
-  const onMove = (e: React.TouchEvent | React.MouseEvent) => {
-    if (startX === 0) return;
-    const x = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
-    const diff = x - startX;
-    if (diff < 0) setCurrentX(diff);
-  };
-
-  const onEnd = () => {
-    if (currentX < -60) setCurrentX(-80);
-    else setCurrentX(0);
-    setStartX(0);
-  };
-
-  return (
-    <div className="relative overflow-hidden rounded-xl bg-red-600">
-      <button onClick={onDelete} className="absolute right-0 top-0 bottom-0 w-20 flex items-center justify-center text-[10px] font-black uppercase text-white">Delete</button>
-      <div
-        className="relative bg-zinc-900 border border-white/5 p-3 flex justify-between items-center transition-transform duration-200 ease-out"
-        style={{ transform: `translateX(${currentX}px)` }}
-        onTouchStart={onStart} onTouchMove={onMove} onTouchEnd={onEnd}
-        onMouseDown={onStart} onMouseMove={(e) => onMove(e)} onMouseUp={onEnd} onMouseLeave={onEnd}
-      >
-        {children}
-      </div>
-    </div>
-  );
-}
-
 // --- MAIN HUB ---
 export default function FestivalHub() {
   const [mounted, setMounted] = useState(false);
@@ -182,12 +111,35 @@ export default function FestivalHub() {
   const [regName, setRegName] = useState("");
 
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const handleVersionAndInit = async () => {
+      try {
+        // Fetch the version file from public/version.json with a timestamp to bust cache
+        const res = await fetch(`/version.json?t=${Date.now()}`, { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          const latestVersion = data.version;
+          const localVersion = localStorage.getItem('squad_app_version');
+
+          if (localVersion && parseInt(localVersion) < latestVersion) {
+            // New version detected. Update local storage and force a hard reload
+            localStorage.setItem('squad_app_version', latestVersion.toString());
+            window.location.reload();
+            return; // Stop initialization because we are reloading
+          } else if (!localVersion) {
+            localStorage.setItem('squad_app_version', latestVersion.toString());
+          }
+        }
+      } catch (err) {
+        console.error("Version check skipped:", err);
+      }
+
+      // Normal mount logic
       setMounted(true);
       const saved = localStorage.getItem('squad-profile');
       if (saved) setUser(JSON.parse(saved));
-    }, 0);
-    return () => clearTimeout(timer);
+    };
+
+    handleVersionAndInit();
   }, []);
 
   const handleRegister = (avatarType: 'boy' | 'girl') => {
@@ -286,22 +238,8 @@ export default function FestivalHub() {
   );
 }
 
-// --- CATEGORY BUBBLE COMPONENT ---
-function CategoryBubble({ cat, activeCategory, setActiveCategory }: CategoryBubbleProps) {
-  const { setNodeRef, isOver } = useSortable({ id: cat, disabled: true });
+// --- COMPONENTS ---
 
-  return (
-    <button
-      ref={setNodeRef}
-      onClick={() => setActiveCategory(cat)}
-      className={`px-4 py-2 rounded-full text-[10px] font-black uppercase transition-all whitespace-nowrap border-2 ${isOver ? 'border-green-500 bg-green-500/20' : 'border-transparent'} ${activeCategory === cat ? 'bg-white text-black scale-105' : 'bg-white/5 text-zinc-500'}`}
-    >
-      {cat}
-    </button>
-  );
-}
-
-// --- CHECKLIST & DETAIL ITEM COMPONENT ---
 function DetailItem({ label, isChecklist, festName, user, link }: DetailItemProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [items, setItems] = useState<ChecklistItem[]>([]);
@@ -397,7 +335,6 @@ function DetailItem({ label, isChecklist, festName, user, link }: DetailItemProp
     }
   };
 
-  // IF IT'S NOT A CHECKLIST: Check for Links vs Plain Text
   if (!isChecklist) {
     if (link) {
       return (
@@ -469,31 +406,77 @@ function DetailItem({ label, isChecklist, festName, user, link }: DetailItemProp
   );
 }
 
-// --- MESSAGES ---
+function CategoryBubble({ cat, activeCategory, setActiveCategory }: CategoryBubbleProps) {
+  const { setNodeRef, isOver } = useSortable({ id: cat, disabled: true });
+  return (
+    <button
+      ref={setNodeRef}
+      onClick={() => setActiveCategory(cat)}
+      className={`px-4 py-2 rounded-full text-[10px] font-black uppercase transition-all whitespace-nowrap border-2 ${isOver ? 'border-green-500 bg-green-500/20' : 'border-transparent'} ${activeCategory === cat ? 'bg-white text-black scale-105' : 'bg-white/5 text-zinc-500'}`}
+    >
+      {cat}
+    </button>
+  );
+}
+
+function SortableSwipeItem({ it, onDelete, onToggle }: { it: ChecklistItem, onDelete: () => void, onToggle: () => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: it.id });
+  const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 100 : 1, opacity: isDragging ? 0.5 : 1 };
+  return (
+    <div ref={setNodeRef} style={style}>
+      <SwipeableItem onDelete={onDelete}>
+        <div className="flex items-center gap-3 w-full">
+          <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-1">
+            <svg width="12" height="12" viewBox="0 0 20 20" fill="#52525b"><path d="M7 2a2 2 0 10-4 0 2 2 0 004 0zM7 10a2 2 0 10-4 0 2 2 0 004 0zM7 18a2 2 0 10-4 0 2 2 0 004 0zM17 2a2 2 0 10-4 0 2 2 0 004 0zM17 10a2 2 0 10-4 0 2 2 0 004 0zM17 18a2 2 0 10-4 0 2 2 0 004 0z" /></svg>
+          </div>
+          <span className={`flex-1 text-sm font-bold ${it.is_done ? 'line-through text-white/20' : 'text-white'}`}>{it.item_text}</span>
+          <button onClick={onToggle} className={`w-6 h-6 rounded-md border-2 transition-all ${it.is_done ? 'bg-green-500 border-green-400' : 'border-white/20'}`}>{it.is_done && "✓"}</button>
+        </div>
+      </SwipeableItem>
+    </div>
+  );
+}
+
+function SwipeableItem({ children, onDelete }: { children: React.ReactNode, onDelete: () => void }) {
+  const [startX, setStartX] = useState(0);
+  const [currentX, setCurrentX] = useState(0);
+  const onStart = (e: React.TouchEvent | React.MouseEvent) => setStartX('touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX);
+  const onMove = (e: React.TouchEvent | React.MouseEvent) => {
+    if (startX === 0) return;
+    const x = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+    const diff = x - startX;
+    if (diff < 0) setCurrentX(diff);
+  };
+  const onEnd = () => { if (currentX < -60) setCurrentX(-80); else setCurrentX(0); setStartX(0); };
+  return (
+    <div className="relative overflow-hidden rounded-xl bg-red-600">
+      <button onClick={onDelete} className="absolute right-0 top-0 bottom-0 w-20 flex items-center justify-center text-[10px] font-black uppercase text-white">Delete</button>
+      <div className="relative bg-zinc-900 border border-white/5 p-3 flex justify-between items-center transition-transform duration-200 ease-out" style={{ transform: `translateX(${currentX}px)` }} onTouchStart={onStart} onTouchMove={onMove} onTouchEnd={onEnd} onMouseDown={onStart} onMouseMove={(e) => onMove(e)} onMouseUp={onEnd} onMouseLeave={onEnd}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function MessageWall({ isOpen, onClose, user }: { isOpen: boolean, onClose: () => void, user: UserProfile }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-
   const fetchWall = useCallback(async () => {
     const { data } = await supabase.from('messages').select('*').order('created_at', { ascending: false }).limit(25);
     if (data) setMessages(data as Message[]);
   }, []);
-
   useEffect(() => {
     if (!isOpen) return;
     const timer = setTimeout(() => { void fetchWall(); }, 0);
     const ch = supabase.channel('wall').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => { void fetchWall(); }).subscribe();
     return () => { clearTimeout(timer); void supabase.removeChannel(ch); };
   }, [isOpen, fetchWall]);
-
   const send = async () => {
     if (!input.trim()) return;
     const { error } = await supabase.from('messages').insert([{ user_name: user.name, content: input }]).select();
     if (!error) { setInput(""); void fetchWall(); }
   };
-
   if (!isOpen) return null;
-
   return (
     <div className="fixed inset-0 z-[9999] bg-black flex flex-col animate-in slide-in-from-right duration-300">
       <div className="p-6 border-b border-white/10 flex justify-between items-center bg-zinc-950">
@@ -520,10 +503,8 @@ function MessageWall({ isOpen, onClose, user }: { isOpen: boolean, onClose: () =
   );
 }
 
-// --- CARDS & SQUAD ---
 function FestivalCard({ fest, onOpen, currentUser }: { fest: Festival, onOpen: () => void, currentUser: UserProfile }) {
   const [isGoing, setIsGoing] = useState(false);
-
   useEffect(() => {
     const check = async () => {
       const { data } = await supabase.from('squad').select('*').eq('festival_name', fest.name).eq('user_name', currentUser.name);
@@ -531,7 +512,6 @@ function FestivalCard({ fest, onOpen, currentUser }: { fest: Festival, onOpen: (
     };
     void check();
   }, [fest.name, currentUser.name]);
-
   const join = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (isGoing) return;
@@ -542,7 +522,6 @@ function FestivalCard({ fest, onOpen, currentUser }: { fest: Festival, onOpen: (
     }]).select();
     if (!error) setIsGoing(true);
   };
-
   return (
     <div onClick={onOpen} className="relative h-[320px] rounded-[2.5rem] overflow-hidden bg-zinc-900 border border-white/10 group cursor-pointer active:scale-[0.98] transition-all">
       <img src={fest.image} className="absolute inset-0 w-full h-full object-contain p-12 opacity-30 group-hover:opacity-60 transition-all duration-500 group-hover:scale-110" alt="" />
