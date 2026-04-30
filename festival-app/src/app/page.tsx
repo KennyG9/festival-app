@@ -4,13 +4,16 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { createClient, RealtimeChannel } from '@supabase/supabase-js';
 import {
   DndContext,
-  closestCenter,
+  rectIntersection,
   KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
   DragEndEvent,
   useDroppable,
+  DragOverlay,
+  DragStartEvent,
+  defaultDropAnimationSideEffects,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -175,7 +178,7 @@ export default function FestivalHub() {
   }
 
   return (
-    <main className="min-h-screen bg-black text-white p-6 font-sans">
+    <main className="min-h-screen bg-black text-white p-6 font-sans selection:bg-green-500/30 overflow-x-hidden" style={{ overscrollBehavior: 'none' }}>
       <header className="max-w-7xl mx-auto flex justify-between items-center mb-10">
         <h1 className="text-3xl font-black italic tracking-tighter leading-none">SQUAD HUB</h1>
         <div className="flex gap-2">
@@ -255,11 +258,12 @@ function DetailItem({ label, isChecklist, festName, user, link }: DetailItemProp
   const [items, setItems] = useState<ChecklistItem[]>([]);
   const [input, setInput] = useState("");
   const [activeCategory, setActiveCategory] = useState("Essentials");
+  const [activeDragItem, setActiveDragItem] = useState<ChecklistItem | null>(null);
 
   const categories = ["Essentials", "Camping", "Clothing", "Tech", "Misc"];
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
@@ -289,38 +293,33 @@ function DetailItem({ label, isChecklist, festName, user, link }: DetailItemProp
   const deleteItem = async (id: string) => { await supabase.from('checklist').delete().eq('id', id); void fetchData(); };
   const toggleItem = async (it: ChecklistItem) => { await supabase.from('checklist').update({ is_done: !it.is_done }).eq('id', it.id); void fetchData(); };
 
+  const handleDragStart = (event: DragStartEvent) => {
+    const item = items.find(i => i.id === event.active.id);
+    if (item) setActiveDragItem(item);
+  };
+
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
+    setActiveDragItem(null);
     if (!over) return;
 
     const overId = over.id.toString();
 
-    // Check if the item was dropped onto a category bubble
     if (overId.startsWith('drop-')) {
       const newCat = overId.replace('drop-', '');
-      const activeItem = items.find(i => i.id === active.id);
-
-      if (activeItem && activeItem.category !== newCat) {
-        // Move item to the new category and update database
+      if (activeDragItem && activeDragItem.category !== newCat) {
         await supabase.from('checklist').update({ category: newCat }).eq('id', active.id);
         void fetchData();
         return;
       }
     }
 
-    // Standard sorting within the same list
     if (active.id !== over.id) {
       const oldIndex = items.findIndex((i) => i.id === active.id);
       const newIndex = items.findIndex((i) => i.id === over.id);
       const newArray = arrayMove(items, oldIndex, newIndex);
       setItems(newArray);
-      await supabase.from('checklist').upsert(newArray.map((item, idx) => ({
-        id: item.id,
-        position: idx,
-        fest_name: festName,
-        item_text: item.item_text,
-        category: item.category
-      })));
+      await supabase.from('checklist').upsert(newArray.map((item, idx) => ({ id: item.id, position: idx, fest_name: festName, item_text: item.item_text, category: item.category })));
     }
   };
 
@@ -342,7 +341,7 @@ function DetailItem({ label, isChecklist, festName, user, link }: DetailItemProp
       </button>
       {isOpen && (
         <div className="p-5 pt-0 space-y-6 animate-in fade-in duration-200">
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <DndContext sensors={sensors} collisionDetection={rectIntersection} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
             <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
               {categories.map(cat => (
                 <CategoryBubble key={cat} cat={cat} activeCategory={activeCategory} setActiveCategory={setActiveCategory} />
@@ -365,6 +364,22 @@ function DetailItem({ label, isChecklist, festName, user, link }: DetailItemProp
                 </div>
               </SortableContext>
             </div>
+
+            <DragOverlay dropAnimation={{
+              sideEffects: defaultDropAnimationSideEffects({
+                styles: { active: { opacity: '0.4' } },
+              }),
+            }}>
+              {activeDragItem ? (
+                <div className="w-full bg-zinc-800 border border-green-500/50 p-3 rounded-xl shadow-2xl scale-105">
+                  <div className="flex items-center gap-3 w-full opacity-100">
+                    <div className="p-1"><svg width="12" height="12" viewBox="0 0 20 20" fill="#52525b"><path d="M7 2a2 2 0 10-4 0 2 2 0 004 0zM7 10a2 2 0 10-4 0 2 2 0 004 0zM7 18a2 2 0 10-4 0 2 2 0 004 0zM17 2a2 2 0 10-4 0 2 2 0 004 0zM17 10a2 2 0 10-4 0 2 2 0 004 0zM17 18a2 2 0 10-4 0 2 2 0 004 0z" /></svg></div>
+                    <span className="flex-1 text-sm font-bold text-white">{activeDragItem.item_text}</span>
+                    <div className="w-6 h-6 rounded-md border-2 border-white/20" />
+                  </div>
+                </div>
+              ) : null}
+            </DragOverlay>
           </DndContext>
         </div>
       )}
@@ -376,9 +391,9 @@ function SortableSwipeItem({ it, onDelete, onToggle }: { it: ChecklistItem, onDe
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: it.id });
   const style = {
     transform: CSS.Translate.toString(transform),
-    transition: transition || 'transform 200ms ease',
+    transition,
     zIndex: isDragging ? 100 : 1,
-    opacity: isDragging ? 0.6 : 1,
+    opacity: isDragging ? 0.3 : 1,
     touchAction: 'none'
   };
   return (
