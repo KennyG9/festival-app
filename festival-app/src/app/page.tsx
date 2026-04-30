@@ -10,6 +10,7 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
+  useDroppable,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -114,14 +115,14 @@ export default function FestivalHub() {
       });
       if (res.ok) {
         const data = await res.json();
-        const localVersion = localStorage.getItem('squad_app_version');
-        if (manual || (localVersion && parseInt(localVersion) < data.version)) {
+        const storedVersion = localStorage.getItem('squad_app_version');
+        if (manual || (storedVersion && parseInt(storedVersion) < data.version)) {
           localStorage.setItem('squad_app_version', data.version.toString());
           const url = new URL(window.location.href);
           url.searchParams.set('reload_ts', Date.now().toString());
           window.location.replace(url.toString());
           return true;
-        } else if (!localVersion) {
+        } else if (!storedVersion) {
           localStorage.setItem('squad_app_version', data.version.toString());
         }
       }
@@ -233,7 +234,22 @@ export default function FestivalHub() {
   );
 }
 
-// --- CHECKLIST & DETAIL ITEM COMPONENT ---
+// --- DROP-TARGET BUBBLE ---
+function CategoryBubble({ cat, activeCategory, setActiveCategory }: { cat: string, activeCategory: string, setActiveCategory: (c: string) => void }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `drop-${cat}` });
+
+  return (
+    <button
+      ref={setNodeRef}
+      onClick={() => setActiveCategory(cat)}
+      className={`select-none px-4 py-2 rounded-full text-[10px] font-black uppercase transition-all border-2 ${isOver ? 'border-green-500 bg-green-500/20 scale-110' : 'border-transparent'} ${activeCategory === cat ? 'bg-white text-black scale-105' : 'bg-white/5 text-zinc-500'}`}
+    >
+      {cat}
+    </button>
+  );
+}
+
+// --- CHECKLIST & DETAIL ITEM ---
 function DetailItem({ label, isChecklist, festName, user, link }: DetailItemProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [items, setItems] = useState<ChecklistItem[]>([]);
@@ -243,7 +259,7 @@ function DetailItem({ label, isChecklist, festName, user, link }: DetailItemProp
   const categories = ["Essentials", "Camping", "Clothing", "Tech", "Misc"];
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 10 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
@@ -255,12 +271,10 @@ function DetailItem({ label, isChecklist, festName, user, link }: DetailItemProp
   useEffect(() => {
     if (!isChecklist || !isOpen) return;
     let ch: RealtimeChannel;
-
     const setupSub = async () => {
       await fetchData();
       ch = supabase.channel(`ck-${festName}`).on('postgres_changes', { event: '*', schema: 'public', table: 'checklist', filter: `fest_name=eq.${festName}` }, () => { void fetchData(); }).subscribe();
     };
-
     void setupSub();
     return () => { if (ch) void supabase.removeChannel(ch); };
   }, [isChecklist, isOpen, festName, fetchData]);
@@ -278,6 +292,20 @@ function DetailItem({ label, isChecklist, festName, user, link }: DetailItemProp
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over) return;
+
+    // Handle dropping on a category bubble
+    const overId = over.id.toString();
+    if (overId.startsWith('drop-')) {
+      const newCat = overId.replace('drop-', '');
+      const activeItem = items.find(i => i.id === active.id);
+      if (activeItem && activeItem.category !== newCat) {
+        await supabase.from('checklist').update({ category: newCat }).eq('id', active.id);
+        void fetchData();
+        return;
+      }
+    }
+
+    // Standard sorting
     if (active.id !== over.id) {
       const oldIndex = items.findIndex((i) => i.id === active.id);
       const newIndex = items.findIndex((i) => i.id === over.id);
@@ -308,7 +336,7 @@ function DetailItem({ label, isChecklist, festName, user, link }: DetailItemProp
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
               {categories.map(cat => (
-                <button key={cat} onClick={() => setActiveCategory(cat)} className={`select-none px-4 py-2 rounded-full text-[10px] font-black uppercase transition-all border-2 border-transparent ${activeCategory === cat ? 'bg-white text-black scale-105' : 'bg-white/5 text-zinc-500'}`}>{cat}</button>
+                <CategoryBubble key={cat} cat={cat} activeCategory={activeCategory} setActiveCategory={setActiveCategory} />
               ))}
             </div>
             <div className="flex gap-2">
@@ -317,12 +345,10 @@ function DetailItem({ label, isChecklist, festName, user, link }: DetailItemProp
             </div>
             <div className="space-y-3">
               <div className="flex items-center gap-2 opacity-30">
-                <div className="h-[1px] flex-1 bg-white/20" />
-                <span className="text-[9px] font-black uppercase tracking-widest">{activeCategory}</span>
-                <div className="h-[1px] flex-1 bg-white/20" />
+                <div className="h-[1px] flex-1 bg-white/20" /><span className="text-[9px] font-black uppercase tracking-widest">{activeCategory}</span><div className="h-[1px] flex-1 bg-white/20" />
               </div>
               <SortableContext items={filteredItems.map(i => i.id)} strategy={verticalListSortingStrategy}>
-                <div className="space-y-2">
+                <div className="space-y-2 min-h-[50px]">
                   {filteredItems.map(it => (
                     <SortableSwipeItem key={it.id} it={it} onDelete={() => deleteItem(it.id)} onToggle={() => toggleItem(it)} />
                   ))}
@@ -339,12 +365,20 @@ function DetailItem({ label, isChecklist, festName, user, link }: DetailItemProp
 
 function SortableSwipeItem({ it, onDelete, onToggle }: { it: ChecklistItem, onDelete: () => void, onToggle: () => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: it.id });
-  const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 100 : 1, opacity: isDragging ? 0.5 : 1, touchAction: 'none' };
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    transition: transition || 'transform 200ms ease',
+    zIndex: isDragging ? 100 : 1,
+    opacity: isDragging ? 0.6 : 1,
+    touchAction: 'none'
+  };
   return (
     <div ref={setNodeRef} style={style} className="select-none">
       <SwipeableItem onDelete={onDelete}>
         <div className="flex items-center gap-3 w-full">
-          <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-1"><svg width="12" height="12" viewBox="0 0 20 20" fill="#52525b"><path d="M7 2a2 2 0 10-4 0 2 2 0 004 0zM7 10a2 2 0 10-4 0 2 2 0 004 0zM7 18a2 2 0 10-4 0 2 2 0 004 0zM17 2a2 2 0 10-4 0 2 2 0 004 0zM17 10a2 2 0 10-4 0 2 2 0 004 0zM17 18a2 2 0 10-4 0 2 2 0 004 0z" /></svg></div>
+          <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-1">
+            <svg width="12" height="12" viewBox="0 0 20 20" fill="#52525b"><path d="M7 2a2 2 0 10-4 0 2 2 0 004 0zM7 10a2 2 0 10-4 0 2 2 0 004 0zM7 18a2 2 0 10-4 0 2 2 0 004 0zM17 2a2 2 0 10-4 0 2 2 0 004 0zM17 10a2 2 0 10-4 0 2 2 0 004 0zM17 18a2 2 0 10-4 0 2 2 0 004 0z" /></svg>
+          </div>
           <span className={`flex-1 text-sm font-bold ${it.is_done ? 'line-through text-white/20' : 'text-white'}`}>{it.item_text}</span>
           <button onClick={onToggle} className={`w-6 h-6 rounded-md border-2 transition-all ${it.is_done ? 'bg-green-500 border-green-400' : 'border-white/20'}`}>{it.is_done && "✓"}</button>
         </div>
@@ -371,31 +405,25 @@ function SwipeableItem({ children, onDelete }: { children: React.ReactNode, onDe
 function MessageWall({ isOpen, onClose, user }: { isOpen: boolean, onClose: () => void, user: UserProfile }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-
   const fetchWall = useCallback(async () => {
     const { data } = await supabase.from('messages').select('*').order('created_at', { ascending: false }).limit(25);
     if (data) setMessages(data as Message[]);
   }, []);
-
   useEffect(() => {
     if (!isOpen) return;
     let ch: RealtimeChannel;
-
     const setup = async () => {
       await fetchWall();
       ch = supabase.channel('wall').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => { void fetchWall(); }).subscribe();
     };
-
     void setup();
     return () => { if (ch) void supabase.removeChannel(ch); };
   }, [isOpen, fetchWall]);
-
   const send = async () => {
     if (!input.trim()) return;
     const { error } = await supabase.from('messages').insert([{ user_name: user.name, content: input }]).select();
     if (!error) { setInput(""); void fetchWall(); }
   };
-
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 z-[9999] bg-black flex flex-col animate-in slide-in-from-right duration-300">
