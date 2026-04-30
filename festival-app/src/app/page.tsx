@@ -51,7 +51,7 @@ interface DetailItemProps {
 // --- DATA ---
 const FESTIVALS: Festival[] = [
   {
-    name: "Lost Lands",
+    name: "Lost Lands with the sexiest women ever",
     location: "Thornville, Ohio",
     date: "2026-09-18",
     image: "https://www.lostlandsfestival.com/wp-content/uploads/2026/01/Lost_Lands_2026_Logo_WithDatesandLocation_1000px.png",
