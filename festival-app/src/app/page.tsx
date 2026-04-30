@@ -65,6 +65,7 @@ interface DetailItemProps {
   isChecklist: boolean;
   festName: string;
   user: UserProfile;
+  link?: string | null;
 }
 
 interface CategoryBubbleProps {
@@ -262,7 +263,16 @@ export default function FestivalHub() {
             <div className="grid grid-cols-1 gap-4">
               {selectedFest.details.map((detail: string, i: number) => {
                 const [label, link] = detail.includes('|') ? detail.split('|') : [detail, null];
-                return <DetailItem key={i} label={label} isChecklist={link === 'checklist'} festName={selectedFest.name} user={user} />;
+                return (
+                  <DetailItem
+                    key={i}
+                    label={label}
+                    link={link}
+                    isChecklist={link === 'checklist'}
+                    festName={selectedFest.name}
+                    user={user}
+                  />
+                );
               })}
             </div>
           </div>
@@ -291,8 +301,8 @@ function CategoryBubble({ cat, activeCategory, setActiveCategory }: CategoryBubb
   );
 }
 
-// --- CHECKLIST COMPONENT ---
-function DetailItem({ label, isChecklist, festName, user }: DetailItemProps) {
+// --- CHECKLIST & DETAIL ITEM COMPONENT ---
+function DetailItem({ label, isChecklist, festName, user, link }: DetailItemProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [items, setItems] = useState<ChecklistItem[]>([]);
   const [input, setInput] = useState("");
@@ -387,7 +397,23 @@ function DetailItem({ label, isChecklist, festName, user }: DetailItemProps) {
     }
   };
 
-  if (!isChecklist) return <div className="p-5 bg-white/5 border border-white/10 rounded-2xl font-bold italic text-white/90">{label}</div>;
+  // IF IT'S NOT A CHECKLIST: Check for Links vs Plain Text
+  if (!isChecklist) {
+    if (link) {
+      return (
+        <a
+          href={link}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="p-5 bg-white/5 border border-white/10 rounded-2xl font-bold italic text-white/90 hover:bg-white/10 hover:border-green-500 transition-all flex justify-between items-center group"
+        >
+          <span>{label}</span>
+          <span className="text-[10px] text-zinc-500 group-hover:text-green-500">OPEN LINK ↗</span>
+        </a>
+      );
+    }
+    return <div className="p-5 bg-white/5 border border-white/10 rounded-2xl font-bold italic text-white/90">{label}</div>;
+  }
 
   return (
     <div className="border border-white/10 rounded-2xl bg-white/5 overflow-hidden">
