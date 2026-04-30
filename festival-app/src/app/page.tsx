@@ -81,7 +81,7 @@ const FESTIVALS: Festival[] = [
     location: "Thornville, Ohio",
     date: "2026-09-18",
     image: "https://www.lostlandsfestival.com/wp-content/uploads/2026/01/Lost_Lands_2026_Logo_WithDatesandLocation_1000px.png",
-    details: ["Camping: GA Car", "Entry: Leave Wed 8am Arrive Thur 12am", "Checklist|checklist", "Tickets|https://lostlands.frontgatetickets.com/event/7nuf54cayx3j1p90"]
+    details: ["Camping: 4 Days", "Entry: Leave Wed 8am Arrive Thur 12am", "Checklist|checklist", "Tickets|https://lostlands.frontgatetickets.com/event/7nuf54cayx3j1p90"]
   },
   {
     name: "EDC Orlando",
