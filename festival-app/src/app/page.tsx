@@ -9,7 +9,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  DragEndEvent
+  DragEndEvent,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -67,6 +67,12 @@ interface DetailItemProps {
   user: UserProfile;
 }
 
+interface CategoryBubbleProps {
+  cat: string;
+  activeCategory: string;
+  setActiveCategory: (cat: string) => void;
+}
+
 // --- DATA ---
 const FESTIVALS: Festival[] = [
   {
@@ -117,7 +123,6 @@ function SortableSwipeItem({
     <div ref={setNodeRef} style={style}>
       <SwipeableItem onDelete={onDelete}>
         <div className="flex items-center gap-3 w-full">
-          {/* Drag Handle */}
           <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-1">
             <svg width="12" height="12" viewBox="0 0 20 20" fill="#52525b"><path d="M7 2a2 2 0 10-4 0 2 2 0 004 0zM7 10a2 2 0 10-4 0 2 2 0 004 0zM7 18a2 2 0 10-4 0 2 2 0 004 0zM17 2a2 2 0 10-4 0 2 2 0 004 0zM17 10a2 2 0 10-4 0 2 2 0 004 0zM17 18a2 2 0 10-4 0 2 2 0 004 0z" /></svg>
           </div>
@@ -271,8 +276,22 @@ export default function FestivalHub() {
   );
 }
 
-// --- REPLACE YOUR DetailItem COMPONENT WITH THIS VERSION ---
+// --- CATEGORY BUBBLE COMPONENT ---
+function CategoryBubble({ cat, activeCategory, setActiveCategory }: CategoryBubbleProps) {
+  const { setNodeRef, isOver } = useSortable({ id: cat, disabled: true });
 
+  return (
+    <button
+      ref={setNodeRef}
+      onClick={() => setActiveCategory(cat)}
+      className={`px-4 py-2 rounded-full text-[10px] font-black uppercase transition-all whitespace-nowrap border-2 ${isOver ? 'border-green-500 bg-green-500/20' : 'border-transparent'} ${activeCategory === cat ? 'bg-white text-black scale-105' : 'bg-white/5 text-zinc-500'}`}
+    >
+      {cat}
+    </button>
+  );
+}
+
+// --- CHECKLIST COMPONENT ---
 function DetailItem({ label, isChecklist, festName, user }: DetailItemProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [items, setItems] = useState<ChecklistItem[]>([]);
@@ -293,7 +312,6 @@ function DetailItem({ label, isChecklist, festName, user }: DetailItemProps) {
       .order('position', { ascending: true });
 
     if (data) {
-      // MASTER TECH FIX: Map items with no category to 'Essentials' so they don't vanish
       const sanitizedData = data.map(item => ({
         ...item,
         category: item.category || 'Essentials'
@@ -334,7 +352,24 @@ function DetailItem({ label, isChecklist, festName, user }: DetailItemProps) {
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
-    if (over && active.id !== over.id) {
+    if (!over) return;
+
+    const overId = over.id as string;
+    if (categories.includes(overId)) {
+      const activeItem = items.find(i => i.id === active.id);
+      if (activeItem && activeItem.category !== overId) {
+        const filteredItems = items.filter(i => i.category === overId);
+        const newPos = filteredItems.length > 0 ? Math.max(...filteredItems.map(i => i.position)) + 1 : 0;
+
+        const newItems = items.map(i => i.id === active.id ? { ...i, category: overId, position: newPos } : i);
+        setItems(newItems);
+        await supabase.from('checklist').update({ category: overId, position: newPos }).eq('id', active.id);
+        void fetchData();
+        return;
+      }
+    }
+
+    if (active.id !== over.id) {
       const oldIndex = items.findIndex((i) => i.id === active.id);
       const newIndex = items.findIndex((i) => i.id === over.id);
       const newArray = arrayMove(items, oldIndex, newIndex);
@@ -362,27 +397,20 @@ function DetailItem({ label, isChecklist, festName, user }: DetailItemProps) {
       </button>
       {isOpen && (
         <div className="p-5 pt-0 space-y-6 animate-in fade-in duration-200">
-          <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-            {categories.map(cat => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
-                className={`px-4 py-2 rounded-full text-[10px] font-black uppercase transition-all whitespace-nowrap ${activeCategory === cat ? 'bg-white text-black scale-105' : 'bg-white/5 text-zinc-500 border border-white/5'}`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex gap-2">
-            <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} className="flex-1 bg-white/10 p-3 rounded-xl text-white text-sm outline-none font-bold" placeholder={`Add to ${activeCategory}...`} />
-            <button onClick={add} className="bg-white text-black px-5 rounded-xl font-black">+</button>
-          </div>
-
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+              {categories.map(cat => (
+                <CategoryBubble key={cat} cat={cat} activeCategory={activeCategory} setActiveCategory={setActiveCategory} />
+              ))}
+            </div>
+
+            <div className="flex gap-2">
+              <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} className="flex-1 bg-white/10 p-3 rounded-xl text-white text-sm outline-none font-bold" placeholder={`Add to ${activeCategory}...`} />
+              <button onClick={add} className="bg-white text-black px-5 rounded-xl font-black">+</button>
+            </div>
+
             {categories.map(cat => {
               const categoryItems = items.filter(i => i.category === cat);
-              // Show category if it's the active one or if it has items
               if (categoryItems.length === 0 && activeCategory !== cat) return null;
 
               return (
