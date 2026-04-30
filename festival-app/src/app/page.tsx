@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
 import React, { useState, useEffect, useCallback } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, RealtimeChannel } from '@supabase/supabase-js';
 import {
   DndContext,
   closestCenter,
@@ -68,12 +68,6 @@ interface DetailItemProps {
   link?: string | null;
 }
 
-interface CategoryBubbleProps {
-  cat: string;
-  activeCategory: string;
-  setActiveCategory: (cat: string) => void;
-}
-
 // --- DATA ---
 const FESTIVALS: Festival[] = [
   {
@@ -120,16 +114,15 @@ export default function FestivalHub() {
       });
       if (res.ok) {
         const data = await res.json();
-        const latestVersion = data.version;
         const localVersion = localStorage.getItem('squad_app_version');
-        if (manual || (localVersion && parseInt(localVersion) < latestVersion)) {
-          localStorage.setItem('squad_app_version', latestVersion.toString());
+        if (manual || (localVersion && parseInt(localVersion) < data.version)) {
+          localStorage.setItem('squad_app_version', data.version.toString());
           const url = new URL(window.location.href);
           url.searchParams.set('reload_ts', Date.now().toString());
           window.location.replace(url.toString());
           return true;
         } else if (!localVersion) {
-          localStorage.setItem('squad_app_version', latestVersion.toString());
+          localStorage.setItem('squad_app_version', data.version.toString());
         }
       }
     } catch (err) {
@@ -250,7 +243,7 @@ function DetailItem({ label, isChecklist, festName, user, link }: DetailItemProp
   const categories = ["Essentials", "Camping", "Clothing", "Tech", "Misc"];
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 10 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
@@ -261,9 +254,15 @@ function DetailItem({ label, isChecklist, festName, user, link }: DetailItemProp
 
   useEffect(() => {
     if (!isChecklist || !isOpen) return;
-    const timer = setTimeout(() => { void fetchData(); }, 0);
-    const ch = supabase.channel(`ck-${festName}`).on('postgres_changes', { event: '*', schema: 'public', table: 'checklist', filter: `fest_name=eq.${festName}` }, () => { void fetchData(); }).subscribe();
-    return () => { clearTimeout(timer); void supabase.removeChannel(ch); };
+    let ch: RealtimeChannel;
+
+    const setupSub = async () => {
+      await fetchData();
+      ch = supabase.channel(`ck-${festName}`).on('postgres_changes', { event: '*', schema: 'public', table: 'checklist', filter: `fest_name=eq.${festName}` }, () => { void fetchData(); }).subscribe();
+    };
+
+    void setupSub();
+    return () => { if (ch) void supabase.removeChannel(ch); };
   }, [isChecklist, isOpen, festName, fetchData]);
 
   const add = async () => {
@@ -279,17 +278,6 @@ function DetailItem({ label, isChecklist, festName, user, link }: DetailItemProp
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over) return;
-    const overId = over.id as string;
-    if (categories.includes(overId)) {
-      const activeItem = items.find(i => i.id === active.id);
-      if (activeItem && activeItem.category !== overId) {
-        const filteredItems = items.filter(i => i.category === overId);
-        const newPos = filteredItems.length > 0 ? Math.max(...filteredItems.map(i => i.position)) + 1 : 0;
-        await supabase.from('checklist').update({ category: overId, position: newPos }).eq('id', active.id);
-        void fetchData();
-        return;
-      }
-    }
     if (active.id !== over.id) {
       const oldIndex = items.findIndex((i) => i.id === active.id);
       const newIndex = items.findIndex((i) => i.id === over.id);
@@ -308,7 +296,6 @@ function DetailItem({ label, isChecklist, festName, user, link }: DetailItemProp
     return <div className="p-5 bg-white/5 border border-white/10 rounded-2xl font-bold italic text-white/90">{label}</div>;
   }
 
-  // --- FILTERED CATEGORY VIEW LOGIC ---
   const filteredItems = items.filter(i => i.category === activeCategory);
 
   return (
@@ -319,27 +306,21 @@ function DetailItem({ label, isChecklist, festName, user, link }: DetailItemProp
       {isOpen && (
         <div className="p-5 pt-0 space-y-6 animate-in fade-in duration-200">
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            {/* TABS AT TOP */}
             <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
               {categories.map(cat => (
-                <CategoryBubble key={cat} cat={cat} activeCategory={activeCategory} setActiveCategory={setActiveCategory} />
+                <button key={cat} onClick={() => setActiveCategory(cat)} className={`select-none px-4 py-2 rounded-full text-[10px] font-black uppercase transition-all border-2 border-transparent ${activeCategory === cat ? 'bg-white text-black scale-105' : 'bg-white/5 text-zinc-500'}`}>{cat}</button>
               ))}
             </div>
-
-            {/* ADD INPUT */}
             <div className="flex gap-2">
               <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} className="flex-1 bg-white/10 p-3 rounded-xl text-white text-sm outline-none font-bold" placeholder={`Add to ${activeCategory}...`} />
               <button onClick={add} className="bg-white text-black px-5 rounded-xl font-black">+</button>
             </div>
-
-            {/* ONLY SHOW ACTIVE CATEGORY ITEMS */}
             <div className="space-y-3">
               <div className="flex items-center gap-2 opacity-30">
                 <div className="h-[1px] flex-1 bg-white/20" />
                 <span className="text-[9px] font-black uppercase tracking-widest">{activeCategory}</span>
                 <div className="h-[1px] flex-1 bg-white/20" />
               </div>
-
               <SortableContext items={filteredItems.map(i => i.id)} strategy={verticalListSortingStrategy}>
                 <div className="space-y-2">
                   {filteredItems.map(it => (
@@ -356,16 +337,9 @@ function DetailItem({ label, isChecklist, festName, user, link }: DetailItemProp
   );
 }
 
-function CategoryBubble({ cat, activeCategory, setActiveCategory }: CategoryBubbleProps) {
-  const { setNodeRef, isOver } = useSortable({ id: cat, disabled: true });
-  return (
-    <button ref={setNodeRef} onClick={() => setActiveCategory(cat)} className={`select-none px-4 py-2 rounded-full text-[10px] font-black uppercase transition-all whitespace-nowrap border-2 ${isOver ? 'border-green-500 bg-green-500/20' : 'border-transparent'} ${activeCategory === cat ? 'bg-white text-black scale-105' : 'bg-white/5 text-zinc-500'}`}>{cat}</button>
-  );
-}
-
 function SortableSwipeItem({ it, onDelete, onToggle }: { it: ChecklistItem, onDelete: () => void, onToggle: () => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: it.id });
-  const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 100 : 1, opacity: isDragging ? 0.5 : 1 };
+  const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 100 : 1, opacity: isDragging ? 0.5 : 1, touchAction: 'none' };
   return (
     <div ref={setNodeRef} style={style} className="select-none">
       <SwipeableItem onDelete={onDelete}>
@@ -393,24 +367,35 @@ function SwipeableItem({ children, onDelete }: { children: React.ReactNode, onDe
   );
 }
 
+// --- MESSAGES ---
 function MessageWall({ isOpen, onClose, user }: { isOpen: boolean, onClose: () => void, user: UserProfile }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
+
   const fetchWall = useCallback(async () => {
     const { data } = await supabase.from('messages').select('*').order('created_at', { ascending: false }).limit(25);
     if (data) setMessages(data as Message[]);
   }, []);
+
   useEffect(() => {
     if (!isOpen) return;
-    const timer = setTimeout(() => { void fetchWall(); }, 0);
-    const ch = supabase.channel('wall').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => { void fetchWall(); }).subscribe();
-    return () => { clearTimeout(timer); void supabase.removeChannel(ch); };
+    let ch: RealtimeChannel;
+
+    const setup = async () => {
+      await fetchWall();
+      ch = supabase.channel('wall').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => { void fetchWall(); }).subscribe();
+    };
+
+    void setup();
+    return () => { if (ch) void supabase.removeChannel(ch); };
   }, [isOpen, fetchWall]);
+
   const send = async () => {
     if (!input.trim()) return;
     const { error } = await supabase.from('messages').insert([{ user_name: user.name, content: input }]).select();
     if (!error) { setInput(""); void fetchWall(); }
   };
+
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 z-[9999] bg-black flex flex-col animate-in slide-in-from-right duration-300">
@@ -461,9 +446,7 @@ function FestivalCard({ fest, onOpen, currentUser }: { fest: Festival, onOpen: (
         <h2 className="text-4xl font-black uppercase tracking-tighter text-white leading-none">{fest.name}</h2>
         <p className="text-xs font-bold text-white/40 uppercase tracking-widest mt-1">{fest.location}</p>
       </div>
-      <button onClick={join} className={`absolute z-20 bottom-6 right-6 w-14 h-14 rounded-full border-2 transition-all shadow-xl ${isGoing ? "bg-green-500 border-green-400 text-white" : "bg-white text-black"}`}>
-        {isGoing ? "✓" : "+"}
-      </button>
+      <button onClick={join} className={`absolute z-20 bottom-6 right-6 w-14 h-14 rounded-full border-2 transition-all shadow-xl ${isGoing ? "bg-green-500 border-green-400 text-white" : "bg-white text-black"}`}>{isGoing ? "✓" : "+"}</button>
     </div>
   );
 }
@@ -485,7 +468,6 @@ function SquadList({ festivalName }: { festivalName: string }) {
           <span className="font-bold text-sm text-zinc-300 tracking-tight">{p.user_name}</span>
         </div>
       ))}
-      {attendees.length === 0 && <p className="text-zinc-600 italic text-center py-4 text-xs font-bold uppercase tracking-widest opacity-50">Waiting for squad...</p>}
     </div>
   );
 }
