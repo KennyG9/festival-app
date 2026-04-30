@@ -293,25 +293,34 @@ function DetailItem({ label, isChecklist, festName, user, link }: DetailItemProp
     const { active, over } = event;
     if (!over) return;
 
-    // Handle dropping on a category bubble
     const overId = over.id.toString();
+
+    // Check if the item was dropped onto a category bubble
     if (overId.startsWith('drop-')) {
       const newCat = overId.replace('drop-', '');
       const activeItem = items.find(i => i.id === active.id);
+
       if (activeItem && activeItem.category !== newCat) {
+        // Move item to the new category and update database
         await supabase.from('checklist').update({ category: newCat }).eq('id', active.id);
         void fetchData();
         return;
       }
     }
 
-    // Standard sorting
+    // Standard sorting within the same list
     if (active.id !== over.id) {
       const oldIndex = items.findIndex((i) => i.id === active.id);
       const newIndex = items.findIndex((i) => i.id === over.id);
       const newArray = arrayMove(items, oldIndex, newIndex);
       setItems(newArray);
-      await supabase.from('checklist').upsert(newArray.map((item, idx) => ({ id: item.id, position: idx, fest_name: festName, item_text: item.item_text, category: item.category })));
+      await supabase.from('checklist').upsert(newArray.map((item, idx) => ({
+        id: item.id,
+        position: idx,
+        fest_name: festName,
+        item_text: item.item_text,
+        category: item.category
+      })));
     }
   };
 
