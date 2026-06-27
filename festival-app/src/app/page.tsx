@@ -274,7 +274,7 @@ function DetailItem({ label, isChecklist, festName, user, link }: DetailItemProp
   const [activeCategory, setActiveCategory] = useState("Essentials");
   const [activeDragItem, setActiveDragItem] = useState<ChecklistItem | null>(null);
 
-  const categories = ["Essentials", "Camping", "Clothing", "Tech", "Misc"];
+  const categories = ["Essentials", "Camping", "Clothing", "Tech", "Misc", "Food"];
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
